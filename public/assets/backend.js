@@ -97,7 +97,7 @@
       const all = []; const page = 1000;
       for (let from = 0; ; from += page) {
         const { data, error } = await sb.from('seats')
-          .select('id,section,floor,row_label,row_no,seat_no,kind,label,status,hold_expires_at,updated_at')
+          .select('id,section,floor,row_label,row_no,seat_no,pos_x,kind,label,status,hold_expires_at,updated_at')
           .order('id').range(from, from + page - 1);
         if (error) throw fromPg(error);
         all.push(...data);
@@ -184,7 +184,7 @@
   /* =================================================================
    *  DEMO — 브라우저 내 시뮬레이션 (실제 DB 로직을 그대로 흉내냄)
    * ================================================================= */
-  const DEMO_KEY = 'ito-demo-v6';
+  const DEMO_KEY = 'ito-demo-v7';
   const DEMO_NAMES = ['김민준', '이서연', '박지호', '최하은', '정우진', '강수아', '조현우', '윤지민', '장도윤', '임채원',
     '한예준', '오유나', '서준서', '신하린', '권시우', '황소율', '안지안', '송이준', '류서아', '전태윤'];
 
@@ -234,7 +234,7 @@
     for (const id of Object.keys(s.seats)) if (!wanted.has(id)) { delete s.seats[id]; delete s.holds[id]; }
     for (const [id, x] of wanted) {
       const cur = s.seats[id];
-      s.seats[id] = cur ? { ...cur, section: x.section, row_no: x.row_no, kind: x.kind, label: x.label } : x;
+      s.seats[id] = cur ? { ...cur, section: x.section, row_no: x.row_no, pos_x: x.pos_x, kind: x.kind, label: x.label } : x;
     }
     return wanted.size;
   }

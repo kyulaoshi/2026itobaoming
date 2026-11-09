@@ -94,8 +94,8 @@ check "현장 수령 체크" "$(q "select picked_up from reservations where id='
 q "set role service_role; select admin_cancel_reservation('$RID');" >/dev/null
 check "취소 후 좌석 예약 가능" "$(q "select string_agg(status, ',') from seats where id in ('1-F-16','1-F-17')")" "available,available"
 check "취소 후 연결 좌석 해제" "$(q "select count(*) from reservation_seats where reservation_id='$RID'")" "0"
-q "set role service_role; select admin_set_seat_status('1-L-2','blocked');" >/dev/null
-out=$(anon "select hold_seat('1-L-2', gen_random_uuid());"); [[ "$out" == *BLOCKED* ]] && ok "관리자 차단 좌석 선택 불가" || bad "$out"
+q "set role service_role; select admin_set_seat_status('1-L-3','blocked');" >/dev/null
+out=$(anon "select hold_seat('1-L-3', gen_random_uuid());"); [[ "$out" == *BLOCKED* ]] && ok "관리자 차단 좌석 선택 불가" || bad "$out"
 
 echo "▶ 8. 대량 동시 예약 스트레스 (300명이 좌석 30개를 두고 동시에 점유+확정)"
 reset
@@ -112,9 +112,11 @@ check "reserved 좌석 수 = 확정 예약 좌석 수" "$(q "select (select coun
 echo "    (확정된 예약: $(q "select count(*) from reservations")건 / 경쟁 좌석 30석)"
 
 echo "▶ 9. 실제 공연장 좌석 데이터"
-check "1층 좌석 수" "$(q "select count(*) from seats where floor=1")" "874"
-check "2층 좌석 수" "$(q "select count(*) from seats where floor=2")" "436"
+check "1층 발권 좌석 수" "$(q "select count(*) from seats where floor=1")" "834"
+check "2층 발권 없음" "$(q "select count(*) from seats where floor=2")" "0"
 check "휠체어석 수" "$(q "select count(*) from seats where kind='wheelchair'")" "14"
+check "발권 제외 좌석 없음 (사이드 1·2·45·46, U열 3·4·43·44)" "$(q "select count(*) from seats where seat_no in (1,2,45,46) or (row_label='U' and seat_no in (3,4,43,44))")" "0"
+check "도면 위치 반영 (L열 22번 → 28번 자리)" "$(q "select pos_x from seats where id='1-L-22'")" "28"
 echo "▶ 10. 좌석 배치 변경 보호"
 out=$(psql -X -qtA -c "set role service_role; select admin_save_layout('[{\"code\":\"1L\",\"floor\":1,\"name\":\"x\",\"sort\":1,\"rows\":[{\"r\":\"A\",\"idx\":1,\"seats\":[5]}]}]');" 2>&1)
 [[ "$out" == *LAYOUT_CONFLICT* ]] && ok "예약된 좌석을 없애는 배치 변경 거부" || bad "$out"

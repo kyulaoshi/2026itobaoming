@@ -133,79 +133,36 @@
    *  A 5-15                       A열 5~15번
    *  E-I 3-15                     E~I열 각각 3~15번
    *  U 3-13, w14-15               w(또는 ♿) = 휠체어석
+   *  L w22-25@28                  @숫자 = 도면상 표시 위치(22번을 28번 자리부터)
    *  --                           바로 위 열 다음에 가로 통로
    *  # 메모                        주석
    */
-  ITO.DEFAULT_LAYOUT = `# ───── 1층 (874석) ─────
+  ITO.DEFAULT_LAYOUT = `# ───── 1층 발권 834석 (일반 820 + 휠체어 14) ─────
+# 인천문화예술회관 대공연장 좌석배치도(엑셀) 기준
+# 발권 제외: 양 사이드 1·2번, 45·46번 / U열 3·4번, 43·44번 / 2층 전체
+# @숫자 = 도면상 표시 위치 (예: 22-25@28 → 22~25번을 28번 자리부터 표시)
+
 [1L | 1 | 1층 좌측]
 A 5-15
 B 4-15
-C 3-15
-D 2-15
-E-I 3-15
-J-L 2-15
+C-L 3-15
 --
-M-N 2-15
-O-T 1-15
-U 3-13, w14-15
+M-T 3-15
+U 5-13@3, w14-15
 
 [1C | 1 | 1층 중앙]
 A-K 16-31
-L w16-25
+L w16-21, w22-25@28
 --
 M-S 16-31
 
 [1R | 1 | 1층 우측]
 A 32-42
 B 32-43
-C 32-44
-D 32-45
-E-I 32-44
-J-L 32-45
+C-L 32-44
 --
-M-N 32-45
-O-T 32-46
-U w32-33, 34-44
-
-# ───── 2층 (436석) ─────
-[2L | 2 | 2층 좌측]
-A-B 1-5
-C-D 1-10
---
-E-G 1-10
-H 2-10
-I 3-10
-J 5-10
-K 6-10
-L 7-10
-
-[2CL | 2 | 2층 중앙 좌측]
-C-D 11-20
---
-E-H 11-14
-I-L 11-20
-
-[2C | 2 | 2층 중앙]
-C-D 21-30
---
-E-L 21-30
-
-[2CR | 2 | 2층 중앙 우측]
-C-D 31-40
---
-E-H 37-40
-I-L 31-40
-
-[2R | 2 | 2층 우측]
-A-B 46-50
-C-D 41-50
---
-E-G 41-50
-H 41-49
-I 41-48
-J 41-46
-K 41-45
-L 41-44
+M-T 32-44
+U w32-33, 34-42@36
 `;
 
   const rowKey = (r) => [r.length, r];
@@ -237,19 +194,21 @@ L 41-44
         if (m[1].length !== 1 || b < a) { errors.push(`${ln}번째 줄: 열 범위가 잘못되었습니다.`); return; }
         labels = []; for (let c = a; c <= b; c++) labels.push(String.fromCharCode(c));
       }
-      const seats = [], wheel = [];
+      const seats = [], wheel = [], pos = {};
       for (const part of m[3].split(/[,\s]+/).filter(Boolean)) {
-        const pm = part.match(/^(w|W|♿)?(\d{1,3})(?:-(\d{1,3}))?$/);
-        if (!pm) { errors.push(`${ln}번째 줄: "${part}" 는 좌석 번호 형식이 아닙니다. 예) 3-15, w14-15`); return; }
-        const a = +pm[2], b = pm[3] ? +pm[3] : a;
+        const pm = part.match(/^(w|W|♿)?(\d{1,3})(?:-(\d{1,3}))?(?:@(\d{1,3}))?$/);
+        if (!pm) { errors.push(`${ln}번째 줄: "${part}" 는 좌석 번호 형식이 아닙니다. 예) 3-15, w14-15, 22-25@28`); return; }
+        const a = +pm[2], b = pm[3] ? +pm[3] : a, at = pm[4] ? +pm[4] : null;
         if (a < 1 || b > 300 || b < a) { errors.push(`${ln}번째 줄: 좌석 번호 범위 ${part} 를 확인하세요.`); return; }
-        for (let n = a; n <= b; n++) (pm[1] ? wheel : seats).push(n);
+        if (at != null && (at < 1 || at + (b - a) > 300)) { errors.push(`${ln}번째 줄: 표시 위치 ${part} 를 확인하세요.`); return; }
+        for (let n = a; n <= b; n++) { (pm[1] ? wheel : seats).push(n); if (at != null && at + (n - a) !== n) pos[n] = at + (n - a); }
       }
       for (const r of labels) {
         let row = cur.rows.find((x) => x.r === r);
         if (!row) { row = { r, seats: [], wheel: [] }; cur.rows.push(row); }
         for (const n of seats) row.seats.push(n);
         for (const n of wheel) row.wheel.push(n);
+        if (Object.keys(pos).length) row.pos = Object.assign(row.pos || {}, pos);
         for (const n of [...seats, ...wheel]) {
           const k = `${cur.floor}-${r}-${n}`;
           if (seen.has(k)) errors.push(`${ln}번째 줄: ${cur.floor}층 ${r}열 ${n}번이 중복되었습니다 (${seen.get(k)}번째 줄).`);
@@ -274,8 +233,9 @@ L 41-44
   ITO.layoutToSeats = function (sections) {
     const out = [];
     for (const sec of sections) for (const r of sec.rows) {
-      for (const n of r.seats) out.push({ id: `${sec.floor}-${r.r}-${n}`, section: sec.code, floor: sec.floor, row_label: r.r, row_no: r.idx, seat_no: n, kind: 'normal', label: ITO.seatLabel(sec.floor, r.r, n), status: 'available', hold_expires_at: null });
-      for (const n of r.wheel) out.push({ id: `${sec.floor}-${r.r}-${n}`, section: sec.code, floor: sec.floor, row_label: r.r, row_no: r.idx, seat_no: n, kind: 'wheelchair', label: ITO.seatLabel(sec.floor, r.r, n, true), status: 'available', hold_expires_at: null });
+      const px = (n) => (r.pos && r.pos[n] != null ? r.pos[n] : null);
+      for (const n of r.seats) out.push({ id: `${sec.floor}-${r.r}-${n}`, section: sec.code, floor: sec.floor, row_label: r.r, row_no: r.idx, seat_no: n, pos_x: px(n), kind: 'normal', label: ITO.seatLabel(sec.floor, r.r, n), status: 'available', hold_expires_at: null });
+      for (const n of r.wheel) out.push({ id: `${sec.floor}-${r.r}-${n}`, section: sec.code, floor: sec.floor, row_label: r.r, row_no: r.idx, seat_no: n, pos_x: px(n), kind: 'wheelchair', label: ITO.seatLabel(sec.floor, r.r, n, true), status: 'available', hold_expires_at: null });
     }
     return out;
   };
@@ -304,7 +264,8 @@ L 41-44
         const secs = sections.filter((x) => x.floor === f).sort((a, b) => a.sort - b.sort);
         // 블록별 번호 범위
         const ext = new Map();
-        for (const s of list) { const e = ext.get(s.section) || { min: Infinity, max: -Infinity }; e.min = Math.min(e.min, s.seat_no); e.max = Math.max(e.max, s.seat_no); ext.set(s.section, e); }
+        const X = (s) => (s.pos_x != null ? s.pos_x : s.seat_no);
+        for (const s of list) { const e = ext.get(s.section) || { min: Infinity, max: -Infinity }; e.min = Math.min(e.min, X(s)); e.max = Math.max(e.max, X(s)); ext.set(s.section, e); }
         const blocks = secs.filter((x) => ext.has(x.code));
         // 열 순서 및 통로
         const rowMap = new Map(); for (const s of list) rowMap.set(s.row_no, s.row_label);
@@ -330,7 +291,7 @@ L 41-44
           html += `<span class="rl" style="grid-area:${r}/1">${lab}</span><span class="rl" style="grid-area:${r}/${lastCol}">${lab}</span>`;
         }
         for (const s of list) {
-          const c = colStart.get(s.section) + s.seat_no; const r = gridRow.get(s.row_no);
+          const c = colStart.get(s.section) + X(s); const r = gridRow.get(s.row_no);
           const wc = s.kind === 'wheelchair';
           html += `<button type="button" class="seat${wc ? ' wc' : ''}" data-id="${esc(s.id)}" title="${esc(s.label)}" style="grid-area:${r}/${c}"><span>${wc ? '♿' : s.seat_no}</span></button>`;
         }
@@ -356,7 +317,7 @@ L 41-44
     }
     updateAll() { for (const id of this.btns.keys()) this.update(id); }
     setZoom(z) {
-      this.zoom = Math.max(0.3, Math.min(1.8, z));
+      this.zoom = Math.max(0.22, Math.min(1.8, z));
       this.el.style.setProperty('--z', this.zoom);
       return this.zoom;
     }

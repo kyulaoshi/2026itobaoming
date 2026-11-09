@@ -109,7 +109,7 @@
       const fl = {};
       for (const x of state.seats.values()) { const f = (fl[x.floor] = fl[x.floor] || 0); if (stateOf(x) === 'free') fl[x.floor] = f + 1; }
       const per = Object.keys(fl).sort().map((f) => `${f}층 ${fl[f].toLocaleString()}`).join(' · ');
-      hero.innerHTML = `현재 예약 가능 좌석 <b>${c.free.toLocaleString()}</b>석 / 전체 ${c.total.toLocaleString()}석<br><span style="font-size:13px;color:var(--muted)">${per}</span>`;
+      hero.innerHTML = `현재 예약 가능 좌석 <b>${c.free.toLocaleString()}</b>석 / 전체 ${c.total.toLocaleString()}석` + (Object.keys(fl).length > 1 ? `<br><span style="font-size:13px;color:var(--muted)">${per}</span>` : '');
     }
   }
 
