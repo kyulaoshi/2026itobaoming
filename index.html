@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>인천교사오케스트라 제9회 정기연주회 · 무료 좌석 예약</title>
+  <meta name="description" content="인천교사오케스트라 제9회 정기연주회 「열한 번의 겨울이 축적한 깊이」 · 2026.12.9(수) 19:00 인천문화예술회관 대공연장 · 전석 무료 좌석 예약. 원하는 좌석을 직접 선택하고 공연 당일 현장에서 티켓을 수령하세요.">
+  <meta name="theme-color" content="#06070c">
+  <meta property="og:title" content="인천교사오케스트라 제9회 정기연주회 · 무료 좌석 예약">
+  <meta property="og:description" content="2026. 12. 9.(수) 19:00 인천문화예술회관 대공연장 · 전석 무료 · 원하는 좌석을 직접 선택해 예약하세요.">
+  <meta property="og:type" content="website">
+  <link rel="preload" as="image" href="assets/logo-gold.webp">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306070c'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%23d4af5f' stroke-width='3'/%3E%3Ctext x='32' y='41' font-family='serif' font-size='24' text-anchor='middle' fill='%23d4af5f'%3EI%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="demo-banner" id="demo-banner" hidden>
+    <b>데모 모드</b> — 데이터베이스가 연결되지 않아 이 브라우저 안에서만 동작하는 체험판입니다. 가상의 관객이 좌석을 선택·예약하는 모습이 함께 시뮬레이션됩니다.
+    <button type="button" id="demo-reset">데모 초기화</button>
+  </div>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="#" data-go="home" aria-label="인천교사오케스트라 홈">
+        <img class="brand-logo" src="assets/logo-gold.webp" alt="Incheon Teachers Orchestra" width="52" height="48">
+        <span class="brand-text"><strong>인천교사오케스트라</strong><small>제9회 정기연주회</small></span>
+      </a>
+      <nav class="nav" aria-label="주요 메뉴">
+        <a href="#about" class="hide-m" data-go="about">공연 안내</a>
+        <button type="button" class="linklike" id="btn-lookup">예약 확인/변경</button>
+        <button type="button" class="btn btn-gold btn-sm" data-go="seats">좌석 예약</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============ 메인 ============ -->
+  <div id="view-home">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-light" aria-hidden="true"><div class="beam"></div><svg class="pipes" id="pipes" viewBox="0 0 1100 320" preserveAspectRatio="xMidYMax meet"></svg><div class="dust"></div></div>
+      <div class="container hero-inner">
+        <img class="hero-logo" src="assets/logo-gold.webp" alt="Incheon Teachers Orchestra 로고" width="160" height="147">
+        <div class="kicker" data-bind="kicker">ITO Symphony Series · The 9th Concert</div>
+        <div class="ornament"><i></i></div>
+        <h1 id="hero-title" data-bind="title">인천교사오케스트라 제9회 정기연주회</h1>
+        <p class="subtitle" data-bind="subtitle">열한 번의 겨울이 축적한 깊이</p>
+        <p class="performers" data-bind="performers">지휘 이우찬 · 바순 협연 박보라</p>
+        <dl class="hero-meta">
+          <div><dt>DATE</dt><dd data-bind="date_text">2026년 12월 9일 (수) 오후 7시</dd></div>
+          <div><dt>VENUE</dt><dd><span data-bind="venue">인천문화예술회관 대공연장</span><small data-bind="venue_address"></small></dd></div>
+          <div><dt>TICKET</dt><dd><span class="free-badge" data-bind="price_text">전석 무료</span><small data-bind="pickup_text">공연 당일 현장 수령</small></dd></div>
+        </dl>
+        <div class="hero-cta">
+          <div class="cta-row">
+            <button type="button" class="btn btn-gold btn-lg" data-go="seats">좌석 예약하기</button>
+            <button type="button" class="btn btn-ghost btn-lg" data-lookup>예약 확인/변경</button>
+            <a class="btn btn-ghost btn-lg" data-pamphlet target="_blank" rel="noopener" hidden>프로그램북 보기</a>
+          </div>
+          <div class="avail-pill" id="hero-avail">좌석 정보를 불러오는 중…</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="about" aria-labelledby="about-title">
+      <div class="container">
+        <div class="section-head">
+          <div class="kicker">Concert Information</div>
+          <h2 id="about-title">공연 안내</h2>
+        </div>
+        <div class="info-grid">
+          <div class="card">
+            <h3>공연 정보</h3>
+            <table class="info-table">
+              <tr><th>공연명</th><td data-bind="title"></td></tr>
+              <tr><th>공연 일시</th><td data-bind="date_text"></td></tr>
+              <tr><th>공연 장소</th><td><span data-bind="venue"></span><br><small style="color:var(--muted)" data-bind="venue_address"></small></td></tr>
+              <tr><th>출연</th><td data-bind="performers"></td></tr>
+              <tr><th>주최·주관</th><td data-bind="hosts"></td></tr>
+              <tr><th>티켓 가격</th><td data-bind="price_text"></td></tr>
+              <tr><th>티켓 수령</th><td data-bind="pickup_text"></td></tr>
+              <tr><th>예약 매수</th><td>1인당 최대 <b data-bind="max_seats_per_person">4</b>석</td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="card" id="program-card" hidden>
+              <h3>프로그램</h3>
+              <ol class="program-list" id="program-list"></ol>
+              <a class="btn btn-ghost btn-sm" data-pamphlet target="_blank" rel="noopener" style="margin-top:16px" hidden>프로그램북에서 자세히 보기 ↗</a>
+            </div>
+            <div class="card" id="notice-card" style="margin-top:20px" hidden>
+              <h3>관람 안내</h3>
+              <ul class="notice-list" id="notice-list"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="steps-guide" aria-label="예약 방법">
+          <div><b>I.</b><span>좌석 배치도에서 원하는 좌석을 직접 선택합니다.</span></div>
+          <div><b>II.</b><span>이름과 연락처를 입력합니다. 회원가입은 필요 없습니다.</span></div>
+          <div><b>III.</b><span>예약번호가 담긴 예약 확인서를 받습니다.</span></div>
+          <div><b>IV.</b><span>공연 당일 현장에서 이름 또는 예약번호로 티켓을 받습니다.</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ 예약 ============ -->
+  <div id="view-booking" class="booking" hidden>
+    <div class="container">
+      <div class="booking-top">
+        <h2 class="booking-title"><span data-bind="title"></span><small><span data-bind="date_text"></span> · <span data-bind="venue"></span></small></h2>
+        <ol class="stepper" aria-label="예약 단계">
+          <li data-step="seats"><b>1</b><span>좌석 선택</span></li>
+          <li data-step="form"><b>2</b><span>정보 입력</span></li>
+          <li data-step="done"><b>3</b><span>예약 완료</span></li>
+        </ol>
+      </div>
+
+      <!-- 1. 좌석 선택 -->
+      <section id="panel-seats" aria-label="좌석 선택">
+        <div class="change-banner" id="change-banner" hidden>
+          <div>
+            <b>좌석 변경 중 · <span id="cb-no"></span></b>
+            <p>초록색이 변경 후 내 좌석입니다. 기존 좌석을 누르면 놓게 되고, 빈 좌석을 누르면 추가됩니다. ‘좌석 변경 완료’를 눌러야 반영됩니다.</p>
+            <p class="cb-old">기존 좌석: <span id="cb-old"></span></p>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-change-cancel">변경 취소</button>
+        </div>
+        <div class="card map-card">
+          <div class="map-toolbar">
+            <ul class="legend">
+              <li><i class="l-free"></i>예약 가능</li>
+              <li><i class="l-mine"></i>내가 선택한 좌석</li>
+              <li><i class="l-taken"></i>예약 완료</li>
+              <li><i class="l-held"></i>다른 관객 진행 중</li>
+              <li><i class="l-blocked"></i>선택 불가</li>
+              <li><i class="l-wc">♿</i>휠체어석</li>
+            </ul>
+            <div class="zoom">
+              <span id="floor-nav" class="floor-nav"></span>
+              <span class="live-dot" id="live-dot">연결 중</span>
+              <button type="button" class="icon-btn" id="zoom-out" aria-label="축소">−</button>
+              <button type="button" class="icon-btn" id="zoom-in" aria-label="확대">+</button>
+              <button type="button" class="icon-btn fit" id="zoom-fit">화면 맞춤</button>
+            </div>
+          </div>
+          <div class="swipe-hint">좌우·위아래로 밀어서 1층과 2층 좌석을 볼 수 있어요 · − / + 로 크기 조절</div>
+          <div class="map-scroll" id="map-scroll">
+            <div class="seatmap" id="seatmap"><div class="loading-screen"><div class="spinner"></div>좌석 배치도를 불러오는 중…</div></div>
+          </div>
+        </div>
+
+        <div class="card summary" aria-live="polite">
+          <div>
+            <h4>선택한 좌석 <span id="sel-count-inline" style="color:var(--text)">0</span>석 <span style="color:var(--muted);letter-spacing:0">/ 최대 <span data-bind="max_seats_per_person">4</span>석</span></h4>
+            <div class="chips" id="sel-chips"><span class="empty">좌석 배치도에서 원하는 좌석을 눌러 주세요.</span></div>
+          </div>
+          <div class="stats">
+            <div class="stat mine"><span>선택한 좌석</span><b id="st-mine">0</b></div>
+            <div class="stat free"><span>예약 가능</span><b id="st-free">–</b></div>
+            <div class="stat taken"><span>예약 완료</span><b id="st-taken">–</b></div>
+            <div class="stat held"><span>다른 관객 진행 중</span><b id="st-held">–</b></div>
+          </div>
+          <div class="summary-cta">
+            <div class="timer" id="timer" hidden>남은 선택 시간 <b id="timer-v">10:00</b></div>
+            <button type="button" class="btn btn-gold btn-lg btn-block" id="btn-next" disabled>예약 정보 입력하기</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-clear" hidden>선택 초기화</button>
+            <div class="hint">선택한 좌석은 <b data-bind="hold_minutes">10</b>분 동안 다른 관객이 선택할 수 없습니다.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. 정보 입력 -->
+      <section id="panel-form" aria-label="예약자 정보 입력" hidden>
+        <form class="form-grid" id="res-form" novalidate>
+          <div class="card">
+            <h3>예약자 정보</h3>
+            <div class="field" id="f-name">
+              <label for="in-name">신청자 이름<span class="req">*</span></label>
+              <input class="input" id="in-name" name="name" autocomplete="name" maxlength="30" placeholder="예) 홍길동">
+              <div class="err">신청자 이름을 입력해 주세요.</div>
+            </div>
+            <div class="field" id="f-phone">
+              <label for="in-phone">연락처<span class="req">*</span></label>
+              <input class="input" id="in-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="13" placeholder="010-1234-5678">
+              <div class="err">연락처를 정확히 입력해 주세요. (예: 010-1234-5678)</div>
+              <div class="help">숫자만 입력하면 하이픈(-)이 자동으로 들어갑니다. 현장 수령 시 본인 확인에 사용됩니다.</div>
+            </div>
+            <div class="field" id="f-pin">
+              <label for="in-pin">본인 확인 코드<span class="req">*</span></label>
+              <div class="pin-wrap">
+                <input class="input pin-input" id="in-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="숫자 4~6자리">
+                <button type="button" class="pin-eye" id="pin-eye" aria-label="코드 보기">보기</button>
+              </div>
+              <div class="err">본인 확인 코드를 숫자 4~6자리로 입력해 주세요.</div>
+              <div class="help">예매 내용을 <b>수정하거나 취소할 때</b> 필요합니다. 꼭 기억해 두세요. 암호화되어 저장되므로 주최 측도 알 수 없습니다.</div>
+            </div>
+            <div class="field" id="f-agree">
+              <label>개인정보 수집 및 이용 동의<span class="req">*</span></label>
+              <div class="agree-box">
+                <details>
+                  <summary>수집 항목 및 이용 목적 안내</summary>
+                  <table>
+                    <tr><th>수집 항목</th><td>신청자 이름, 연락처, 본인 확인 코드(암호화 저장)</td></tr>
+                    <tr><th>이용 목적</th><td>공연 좌석 예약 확인, 현장 티켓 수령 시 본인 확인, 공연 관련 긴급 안내</td></tr>
+                    <tr><th>보유 기간</th><td>공연 종료 후 1개월 이내 지체 없이 파기</td></tr>
+                    <tr><th>수집·이용 주체</th><td data-bind="organizer">인천교사오케스트라</td></tr>
+                  </table>
+                  <p>개인정보 수집 및 이용에 동의하지 않을 권리가 있으며, 동의하지 않을 경우 좌석 예약이 제한됩니다.</p>
+                </details>
+                <label class="check"><input type="checkbox" id="in-agree"><span class="box"></span><span class="t">위 내용을 확인하였으며, 개인정보 수집 및 이용에 동의합니다.</span></label>
+              </div>
+              <div class="err">개인정보 수집 및 이용에 동의해 주세요.</div>
+            </div>
+          </div>
+          <div class="card order-summary">
+            <h3>예약 내역</h3>
+            <div class="row"><span>공연</span><span data-bind="title"></span></div>
+            <div class="row"><span>일시</span><span data-bind="date_text"></span></div>
+            <div class="row"><span>장소</span><span data-bind="venue"></span></div>
+            <div class="row"><span>선택 좌석</span><span class="seats-list" id="form-seats"></span></div>
+            <div class="row"><span>티켓 수령</span><span data-bind="pickup_text"></span></div>
+            <div class="total"><span>예약 비용</span><span><b>0</b>원<small>무료</small></span></div>
+            <div class="timer" id="timer2" style="margin:12px 0 14px">남은 시간 <b id="timer2-v">10:00</b></div>
+            <button type="submit" class="btn btn-gold btn-lg btn-block" id="btn-submit">예약하기</button>
+            <button type="button" class="btn btn-ghost btn-block" id="btn-back" style="margin-top:10px">좌석 다시 선택</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- 내 예약 관리 -->
+      <section id="panel-manage" aria-label="내 예약 관리" hidden>
+        <div class="manage-head">
+          <h2>내 예약 관리</h2>
+          <p>좌석 변경, 예약자 정보 수정, 예약 취소를 할 수 있습니다. 현장에서 티켓을 받은 뒤에는 좌석 변경과 취소가 되지 않습니다.</p>
+        </div>
+        <div id="manage-list"></div>
+        <div class="done-actions"><button type="button" class="btn btn-ghost" id="btn-manage-exit">관리 마치기</button></div>
+      </section>
+
+      <!-- 3. 예약 완료 -->
+      <section id="panel-done" aria-label="예약 완료" hidden>
+        <div class="done-wrap">
+          <div class="done-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19.5 7"/></svg></div>
+          <h2>예약이 완료되었습니다!</h2>
+          <p>아래 예약 확인서를 저장하거나 예약번호를 메모해 두세요.</p>
+          <article class="ticket" id="ticket" aria-label="예약 확인서">
+            <span class="ticket-notch t"></span><span class="ticket-notch b"></span>
+            <div class="ticket-main">
+              <div class="ticket-top"><img class="ticket-logo" src="assets/logo-gold.webp" alt="" width="56" height="52"><img class="ticket-logo print-logo" src="assets/logo-black.png" alt="" width="56" height="52"><div><small>Admission Ticket</small><strong data-bind="organizer">인천교사오케스트라</strong></div></div>
+              <h3 data-bind="title"></h3>
+              <dl>
+                <div><dt>예약자</dt><dd id="t-name"></dd></div>
+                <div><dt>연락처</dt><dd id="t-phone"></dd></div>
+                <div class="full"><dt>좌석</dt><dd class="seats-dd" id="t-seats"></dd></div>
+                <div><dt>공연 일시</dt><dd data-bind="date_text"></dd></div>
+                <div><dt>공연 장소</dt><dd data-bind="venue"></dd></div>
+              </dl>
+            </div>
+            <div class="ticket-stub">
+              <small>RESERVATION NO.</small>
+              <div class="resno" id="t-no"></div>
+              <div class="admit">Admit · Free</div>
+              <div class="count" id="t-count"></div>
+            </div>
+          </article>
+          <div class="pickup-note">
+            <div class="ic">i</div>
+            <p><b>티켓은 공연 당일 현장에서 수령합니다.</b><br>공연장 로비의 티켓 배부처에서 <b>예약자 이름</b> 또는 <b>예약번호</b>를 말씀해 주시면 좌석 티켓을 드립니다. 예약 내역은 상단의 ‘예약 확인·변경’ 메뉴에서 언제든 다시 확인할 수 있고, <b>본인 확인 코드</b>를 입력하면 좌석 변경·정보 수정·예약 취소를 할 수 있습니다.</p>
+          </div>
+          <div class="done-actions">
+            <button type="button" class="btn btn-gold" id="btn-print">예약 확인서 인쇄 · PDF 저장</button>
+            <button type="button" class="btn btn-ghost" id="btn-manage">예매 내용 수정하기</button>
+            <button type="button" class="btn btn-ghost" id="btn-copy">예약번호 복사</button>
+            <button type="button" class="btn btn-ghost" id="btn-home">처음으로</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="mobile-bar" id="mobile-bar" hidden>
+    <div class="info"><b id="mb-count">0석 선택</b><br><span id="mb-sub">좌석을 선택해 주세요</span></div>
+    <button type="button" class="btn btn-gold" id="mb-next" disabled>정보 입력하기</button>
+  </div>
+
+  <footer class="site-footer">
+    <img class="footer-logo" src="assets/logo-gold.webp" alt="Incheon Teachers Orchestra" width="88" height="81">
+    <div><span data-bind="hosts">주최 인천교사오케스트라 · 주관 인천광역시교육청</span> · 전석 무료 공연</div>
+    <div style="margin-top:6px">© 인천교사오케스트라. 본 사이트는 공연 좌석 예약 목적 외에 개인정보를 이용하지 않습니다.</div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/api/config"></script>
+  <script src="assets/core.js"></script>
+  <script src="assets/backend.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
