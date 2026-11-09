@@ -1,0 +1,12 @@
+{
+  "name": "ito-concert-reservation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "인천교사오케스트라 정기연주회 무료 좌석 예약 사이트 (Supabase + Vercel)",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "race-test": "node tests/race-test.mjs",
+    "api-test": "node tests/api-test.mjs"
+  }
+}

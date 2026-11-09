@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>관리자 · 인천교사오케스트라 정기연주회 예약</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306070c'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%23d4af5f' stroke-width='3'/%3E%3Ctext x='32' y='41' font-family='serif' font-size='24' text-anchor='middle' fill='%23d4af5f'%3EI%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/admin.css">
+</head>
+<body class="admin">
+  <div class="demo-banner" id="demo-banner" hidden>
+    <b>데모 모드</b> — 브라우저 안에서만 동작하는 체험판입니다. 데모 비밀번호: <b>admin1234</b>
+    <button type="button" id="demo-reset">데모 초기화</button>
+  </div>
+
+  <header class="site-header">
+    <div class="container wide">
+      <a class="brand" href="index.html">
+        <span data-emblem></span>
+        <span class="brand-text"><strong>인천교사오케스트라</strong><small>Reservation Admin</small></span>
+        <span class="admin-badge">관리자</span>
+      </a>
+      <nav class="nav" id="admin-nav" hidden>
+        <span class="live-dot" id="live-dot">연결 중</span>
+        <a href="index.html" target="_blank" rel="noopener" class="hide-m">사이트 보기 ↗</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-logout">로그아웃</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 로그인 -->
+  <main id="view-login" class="login-wrap" hidden>
+    <form class="card login-card" id="login-form" novalidate>
+      <div data-emblem class="login-emblem"></div>
+      <h1>관리자 로그인</h1>
+      <p>예약 현황과 관객 개인정보를 다루는 페이지입니다.<br>관계자 외 접근을 금합니다.</p>
+      <div class="field" id="f-pw">
+        <label for="in-pw">관리자 비밀번호</label>
+        <input class="input" type="password" id="in-pw" autocomplete="current-password" required>
+        <div class="err" id="pw-err">비밀번호가 올바르지 않습니다.</div>
+      </div>
+      <button class="btn btn-gold btn-lg btn-block" id="btn-login" type="submit">로그인</button>
+    </form>
+  </main>
+
+  <!-- 대시보드 -->
+  <main id="view-dash" class="dash" hidden>
+    <div class="container wide">
+      <div class="dash-head">
+        <div>
+          <div class="kicker">Reservation Dashboard</div>
+          <h1 id="dash-title">예약 현황</h1>
+          <p class="dash-sub"><span id="dash-date"></span> · <span id="dash-venue"></span> · <span id="dash-open"></span></p>
+        </div>
+        <div class="dash-updated" id="dash-updated"></div>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab on" data-tab="list">예약자 목록</button>
+        <button role="tab" class="tab" data-tab="seats">좌석 현황 · 관리</button>
+        <button role="tab" class="tab" data-tab="settings">공연 정보 · 운영 설정</button>
+        <button role="tab" class="tab" data-tab="layout">좌석 배치 설정</button>
+      </div>
+
+      <!-- 예약자 목록 -->
+      <section class="tab-panel" id="tab-list">
+        <div class="list-toolbar">
+          <div class="search">
+            <input class="input" id="q" type="search" placeholder="이름 · 예약번호 · 연락처 검색" autocomplete="off">
+          </div>
+          <select class="input" id="filter" aria-label="상태 필터">
+            <option value="confirmed">예약 확정 전체</option>
+            <option value="waiting">미수령</option>
+            <option value="picked">수령 완료</option>
+            <option value="cancelled">취소된 예약</option>
+            <option value="all">전체 (취소 포함)</option>
+          </select>
+          <div class="toolbar-actions">
+            <button class="btn btn-ghost btn-sm" id="btn-xlsx">엑셀 다운로드</button>
+            <button class="btn btn-ghost btn-sm" id="btn-printlist">현장 배부용 출력</button>
+          </div>
+        </div>
+        <div class="table-meta" id="table-meta"></div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr>
+              <th>예약번호</th><th>신청자</th><th>연락처</th><th>예약 좌석</th><th class="num">매수</th><th>예약 일시</th><th class="center">현장 수령</th><th class="center">관리</th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 좌석 현황 -->
+      <section class="tab-panel" id="tab-seats" hidden>
+        <div class="seat-admin">
+          <div class="card map-card">
+            <div class="map-toolbar">
+              <ul class="legend">
+                <li><i class="l-free"></i>예약 가능</li>
+                <li><i class="l-held"></i>예약 진행 중</li>
+                <li><i class="l-taken"></i>예약 완료</li>
+                <li><i class="l-picked"></i>수령 완료</li>
+                <li><i class="l-blocked"></i>예약 불가</li>
+                <li><i class="l-mine"></i>관리자 선택</li>
+                <li><i class="l-wc">♿</i>휠체어석</li>
+              </ul>
+              <div class="zoom">
+                <button type="button" class="icon-btn" id="zoom-out" aria-label="축소">−</button>
+                <button type="button" class="icon-btn" id="zoom-in" aria-label="확대">+</button>
+                <button type="button" class="icon-btn fit" id="zoom-fit">화면 맞춤</button>
+              </div>
+            </div>
+            <div class="map-scroll" id="map-scroll"><div class="seatmap" id="seatmap"></div></div>
+          </div>
+          <aside class="card seat-side">
+            <h3>선택한 좌석 <span id="sel-n">0</span></h3>
+            <p class="muted small">좌석을 눌러 여러 개를 선택한 뒤 아래 작업을 실행하세요.</p>
+            <div id="sel-list" class="sel-list"></div>
+            <div class="side-actions">
+              <button class="btn btn-gold btn-sm btn-block" id="act-assign" disabled>선택 좌석 직접 배정</button>
+              <button class="btn btn-ghost btn-sm btn-block" id="act-block" disabled>예약 불가로 지정</button>
+              <button class="btn btn-ghost btn-sm btn-block" id="act-free" disabled>예약 가능으로 변경</button>
+              <button class="btn btn-ghost btn-sm btn-block" id="act-clear" disabled>선택 해제</button>
+            </div>
+            <p class="muted small" style="margin-top:14px">· 예약 불가: 관계자석·장애인석·음향석 등 일반 예약에서 제외할 좌석<br>· 예약된 좌석을 ‘예약 가능’으로 바꾸면 해당 좌석만 예약에서 빠집니다.</p>
+          </aside>
+        </div>
+      </section>
+
+      <!-- 공연 정보 -->
+      <section class="tab-panel" id="tab-settings" hidden>
+        <form class="card settings-form" id="settings-form" novalidate>
+          <div class="grid2">
+            <div class="field span2"><label for="s-title">공연명</label><input class="input" id="s-title" name="title" maxlength="120"></div>
+            <div class="field span2"><label for="s-subtitle">부제 (메인 화면 문구)</label><input class="input" id="s-subtitle" name="subtitle" maxlength="200"></div>
+            <div class="field"><label for="s-kicker">영문 문구 (제목 위)</label><input class="input" id="s-kicker" name="kicker" maxlength="80"></div>
+            <div class="field"><label for="s-performers">출연</label><input class="input" id="s-performers" name="performers" maxlength="120" placeholder="지휘 이우찬 · 바순 협연 박보라"></div>
+            <div class="field"><label for="s-hosts">주최 · 주관 (표시 문구)</label><input class="input" id="s-hosts" name="hosts" maxlength="120"></div>
+            <div class="field"><label for="s-pamphlet_url">전자 팸플릿 주소</label><input class="input" id="s-pamphlet_url" name="pamphlet_url" type="url" placeholder="https://"></div>
+            <div class="field"><label for="s-date_text">공연 일시 (표시용 문구)</label><input class="input" id="s-date_text" name="date_text" placeholder="2026년 12월 19일 (토) 오후 7시 30분"></div>
+            <div class="field"><label for="s-event_at">공연 일시 (예약번호 연도 기준)</label><input class="input" id="s-event_at" name="event_at" type="datetime-local"></div>
+            <div class="field"><label for="s-venue">공연 장소</label><input class="input" id="s-venue" name="venue"></div>
+            <div class="field"><label for="s-venue_address">장소 주소</label><input class="input" id="s-venue_address" name="venue_address"></div>
+            <div class="field"><label for="s-organizer">단체명 (개인정보 수집 주체)</label><input class="input" id="s-organizer" name="organizer"></div>
+            <div class="field"><label for="s-price_text">티켓 가격 문구</label><input class="input" id="s-price_text" name="price_text"></div>
+            <div class="field"><label for="s-pickup_text">티켓 수령 문구</label><input class="input" id="s-pickup_text" name="pickup_text"></div>
+            <div class="field"><label for="s-reservation_prefix">예약번호 접두어</label><input class="input" id="s-reservation_prefix" name="reservation_prefix" maxlength="6" placeholder="ITO"><div class="help">영문 대문자 2~6자 · 예) ITO-2026-0001</div></div>
+            <div class="field span2"><label for="s-program">프로그램 (한 줄에 한 곡)</label><textarea class="input" id="s-program" name="program" rows="4"></textarea></div>
+            <div class="field span2"><label for="s-notice">관람 안내 (한 줄에 한 항목)</label><textarea class="input" id="s-notice" name="notice" rows="4"></textarea></div>
+          </div>
+          <h3 class="form-sec">예약 운영 설정</h3>
+          <div class="grid3">
+            <div class="field"><label for="s-max">1인당 최대 예약 좌석 수</label><input class="input" id="s-max" name="max_seats_per_person" type="number" min="1" max="20"><div class="help">한 번의 예약 및 같은 연락처 기준 합계</div></div>
+            <div class="field"><label for="s-hold">좌석 임시 점유 시간 (분)</label><input class="input" id="s-hold" name="hold_minutes" type="number" min="2" max="30"><div class="help">시간 내 예약하지 않으면 자동 해제 (2~30분)</div></div>
+            <div class="field"><label>예약 접수</label>
+              <label class="switch"><input type="checkbox" id="s-open" name="reservation_open"><span class="track"></span><span class="lbl" id="s-open-lbl">접수 중</span></label>
+              <div class="help">끄면 새로운 좌석 선택·예약이 즉시 막힙니다.</div></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-gold" type="submit" id="btn-save-settings">저장하기</button></div>
+        </form>
+      </section>
+
+      <!-- 좌석 배치 -->
+      <section class="tab-panel" id="tab-layout" hidden>
+        <div class="layout-grid">
+          <div class="card">
+            <div class="layout-head">
+              <div>
+                <h3 style="margin:0 0 4px">좌석 배치 정의</h3>
+                <p class="muted small" style="margin:0">공연장 도면을 블록(좌측·중앙·우측) 단위로 적습니다. 입력하는 대로 오른쪽 미리보기가 바뀝니다.</p>
+              </div>
+              <div class="layout-total">총 <b id="layout-total">0</b>석<div class="muted small" id="layout-floors"></div></div>
+            </div>
+            <textarea class="input dsl" id="layout-dsl" spellcheck="false" autocomplete="off"></textarea>
+            <ul class="layout-errors" id="layout-errors" hidden></ul>
+            <details class="dsl-help"><summary>작성 방법</summary>
+              <table>
+                <tr><td><code>[1L | 1 | 1층 좌측]</code></td><td>블록 시작: [코드 | 층 | 이름]. 코드는 영문·숫자 4자 이내</td></tr>
+                <tr><td><code>A 5-15</code></td><td>A열 5번~15번</td></tr>
+                <tr><td><code>E-I 3-15</code></td><td>E·F·G·H·I열 모두 3번~15번</td></tr>
+                <tr><td><code>U 3-13, w14-15</code></td><td>쉼표로 여러 범위. <code>w</code>를 붙이면 휠체어석</td></tr>
+                <tr><td><code>--</code></td><td>바로 위 열 다음에 가로 통로 표시</td></tr>
+                <tr><td><code># 메모</code></td><td>주석 (무시됨)</td></tr>
+              </table>
+              <p class="muted small">좌석 번호가 곧 도면상의 가로 위치입니다. 같은 층의 블록은 적은 순서대로 왼쪽부터 놓이고, 같은 열 이름은 같은 높이에 맞춰집니다.</p>
+            </details>
+            <div class="layout-actions">
+              <button class="btn btn-ghost btn-sm" id="btn-default-layout">공연장 기본 배치</button>
+              <button class="btn btn-ghost btn-sm" id="btn-reset-layout">저장된 상태로 되돌리기</button>
+              <span class="spacer"></span>
+              <button class="btn btn-gold btn-sm" id="btn-save-layout">배치 저장</button>
+            </div>
+          </div>
+          <div class="card map-card">
+            <div class="map-toolbar"><b style="font-family:var(--serif);color:var(--gold-2)">미리보기</b><span class="muted small">저장 전 배치 모습입니다.</span></div>
+            <div class="map-scroll"><div class="seatmap" id="preview-map"></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- 인쇄 전용 영역 -->
+  <div id="print-area" class="print-only"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="/api/config"></script>
+  <script src="assets/core.js"></script>
+  <script src="assets/backend.js"></script>
+  <script src="assets/admin.js"></script>
+</body>
+</html>
