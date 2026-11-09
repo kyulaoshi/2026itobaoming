@@ -519,3 +519,28 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .hero .performers { font-size: clamp(14px, 1.6vw, 16px); color: var(--gold); letter-spacing: .08em; margin: 10px 0 0; }
 .cta-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .program-list .composer { display: block; font-family: var(--latin); font-style: italic; color: var(--gold); font-size: 15px; letter-spacing: .02em; }
+
+/* ---------- 본인 확인 코드 · 예약 관리 ---------- */
+.pin-wrap { position: relative; }
+.pin-input { letter-spacing: .3em; font-variant-numeric: tabular-nums; padding-right: 72px; }
+.pin-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--gold-line); background: transparent; color: var(--gold-2); cursor: pointer; font-size: 13px; }
+.change-banner { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 16px; padding: 16px 20px; border-radius: 14px; border: 1px solid rgba(47, 180, 112, .5); background: linear-gradient(180deg, rgba(47, 180, 112, .12), rgba(47, 180, 112, .05)); }
+.change-banner b { color: #bff0d6; font-size: 16px; }
+.change-banner p { margin: 4px 0 0; font-size: 13.5px; color: var(--text-2); }
+.change-banner .cb-old { color: var(--muted); }
+.manage-head { text-align: center; margin: 10px auto 24px; max-width: 640px; }
+.manage-head h2 { font-family: var(--serif); font-size: clamp(24px, 3.4vw, 32px); margin: 0 0 8px; }
+.manage-head p { color: var(--text-2); margin: 0; font-size: 14.5px; }
+.manage-card { max-width: 760px; margin: 0 auto 16px; padding: 24px 26px; }
+.manage-card .mc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--gold-line); padding-bottom: 12px; margin-bottom: 12px; }
+.manage-card .mc-no { font-family: var(--latin); font-weight: 700; font-size: 24px; color: var(--gold-2); letter-spacing: .02em; }
+.manage-card dl { display: grid; grid-template-columns: 90px 1fr; gap: 8px 14px; margin: 0 0 18px; font-size: 15px; }
+.manage-card dt { color: var(--muted); }
+.manage-card dd { margin: 0; word-break: keep-all; }
+.manage-card .mc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.manage-card .mc-note { font-size: 13px; color: var(--seat-held); margin: 10px 0 0; }
+@media (max-width: 720px) {
+  .change-banner { flex-direction: column; align-items: stretch; }
+  .manage-card { padding: 20px 16px; }
+  .manage-card .mc-actions .btn { flex: 1; }
+}

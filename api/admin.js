@@ -13,6 +13,7 @@ const ACTIONS = {
   update_reservation: (b) => rpc('admin_update_reservation', { p_id: str(b.id), p_name: str(b.name), p_phone: str(b.phone), p_memo: str(b.memo) }),
   set_seat_status: (b) => rpc('admin_set_seat_status', { p_seat_id: str(b.seatId), p_status: str(b.status) }),
   create_reservation: (b) => rpc('admin_create_reservation', { p_seat_ids: arr(b.seatIds), p_name: str(b.name), p_phone: str(b.phone), p_memo: str(b.memo) }),
+  reset_pin: (b) => rpc('admin_reset_pin', { p_id: str(b.id), p_pin: str(b.pin) }),
   update_settings: (b) => rpc('admin_update_settings', { p: pickSettings(b.settings) }),
   save_layout: (b) => rpc('admin_save_layout', { p: Array.isArray(b.sections) ? b.sections : [], p_dsl: b.dsl == null ? null : String(b.dsl).slice(0, 20000) }),
 };

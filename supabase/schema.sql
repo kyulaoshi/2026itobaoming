@@ -88,9 +88,17 @@ create table if not exists public.reservations (
   memo           text,
   session_id     uuid,
   agreed_at      timestamptz,
+  pin_salt       text,                          -- 본인 확인 코드: 원문은 저장하지 않고
+  pin_hash       text,                          --   무작위 salt + SHA-256 해시만 저장
+  pin_fails      int not null default 0,        -- 연속 실패 횟수 (5회 → 15분 잠금)
+  pin_locked_until timestamptz,
   created_at     timestamptz not null default now(),
+  updated_at     timestamptz,
   cancelled_at   timestamptz
 );
+alter table public.reservations add column if not exists pin_salt text,
+  add column if not exists pin_hash text, add column if not exists pin_fails int not null default 0,
+  add column if not exists pin_locked_until timestamptz, add column if not exists updated_at timestamptz;
 create index if not exists reservations_phone_idx on public.reservations(phone) where status = 'confirmed';
 create index if not exists reservations_session_idx on public.reservations(session_id);
 
@@ -178,6 +186,46 @@ begin
   select * into cfg from public.event_settings where id = 1;
   y := to_char(coalesce(cfg.event_at, now()) at time zone 'Asia/Seoul', 'YYYY');
   return cfg.reservation_prefix || '-' || y || '-' || lpad(nextval('public.reservation_no_seq')::text, 4, '0');
+end $$;
+
+-- 본인 확인 코드 해시
+create or replace function public._pin_hash(p_salt text, p_pin text) returns text
+language sql immutable as $$ select encode(sha256(convert_to(p_salt || ':' || p_pin, 'UTF8')), 'hex') $$;
+
+create or replace function public._check_pin(p_pin text) returns void
+language plpgsql immutable as $$
+begin
+  if coalesce(p_pin, '') !~ '^[0-9]{4,6}$' then raise exception 'INVALID_PIN'; end if;
+end $$;
+
+-- 관객에게 돌려줄 예약 정보
+create or replace function public._res_json(r public.reservations) returns jsonb
+language sql stable as $$
+  select jsonb_build_object('reservation_no', r.reservation_no, 'name', r.name, 'phone', public._fmt_phone(r.phone),
+    'seats', to_jsonb(r.seat_labels), 'seat_ids', to_jsonb(r.seat_ids), 'picked_up', r.picked_up,
+    'created_at', r.created_at, 'updated_at', r.updated_at)
+$$;
+
+-- 예약번호 + 코드 인증. 실패해도 예외를 던지지 않고 {"error":…} 를 돌려줘야
+-- 실패 횟수 증가가 롤백되지 않습니다. 성공 시 {"id":…} (해당 행은 잠금 상태)
+create or replace function public._auth_reservation(p_no text, p_pin text) returns jsonb
+language plpgsql as $$
+declare r public.reservations;
+begin
+  select * into r from public.reservations
+   where reservation_no = upper(btrim(coalesce(p_no, ''))) and status = 'confirmed' for update;
+  if not found then return jsonb_build_object('error', 'PIN_MISMATCH'); end if;
+  if r.pin_hash is null then return jsonb_build_object('error', 'NO_PIN'); end if;
+  if r.pin_locked_until > now() then return jsonb_build_object('error', 'PIN_LOCKED'); end if;
+  if public._pin_hash(r.pin_salt, coalesce(p_pin, '')) <> r.pin_hash then
+    update public.reservations
+       set pin_fails = pin_fails + 1,
+           pin_locked_until = case when pin_fails + 1 >= 5 then now() + interval '15 minutes' else pin_locked_until end
+     where id = r.id;
+    return jsonb_build_object('error', case when r.pin_fails + 1 >= 5 then 'PIN_LOCKED' else 'PIN_MISMATCH' end);
+  end if;
+  if r.pin_fails > 0 then update public.reservations set pin_fails = 0, pin_locked_until = null where id = r.id; end if;
+  return jsonb_build_object('id', r.id);
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -290,8 +338,9 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- 예약 확정 (원자적)
+drop function if exists public.confirm_reservation(uuid, text[], text, text, boolean);
 create or replace function public.confirm_reservation(
-  p_session uuid, p_seat_ids text[], p_name text, p_phone text, p_agree boolean
+  p_session uuid, p_seat_ids text[], p_name text, p_phone text, p_agree boolean, p_pin text
 ) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
@@ -308,6 +357,7 @@ begin
   if not coalesce(p_agree, false) then raise exception 'AGREE_REQUIRED'; end if;
   if char_length(v_name) < 1 or char_length(v_name) > 30 then raise exception 'INVALID_NAME'; end if;
   v_phone := public._norm_phone(p_phone);
+  perform public._check_pin(p_pin);
 
   select array_agg(distinct x order by x) into ids from unnest(p_seat_ids) x where x is not null;
   n := coalesce(array_length(ids, 1), 0);
@@ -350,9 +400,11 @@ begin
     from public.reservations where phone = v_phone and status = 'confirmed';
   if used + n > cfg.max_seats_per_person then raise exception 'PHONE_LIMIT'; end if;
 
-  insert into public.reservations (reservation_no, name, phone, seat_ids, seat_labels, session_id, agreed_at)
-  values (public._next_reservation_no(), v_name, v_phone, public._sorted_ids(ids), public._sorted_labels(ids), p_session, now())
+  insert into public.reservations (reservation_no, name, phone, seat_ids, seat_labels, session_id, agreed_at, pin_salt)
+  values (public._next_reservation_no(), v_name, v_phone, public._sorted_ids(ids), public._sorted_labels(ids), p_session, now(),
+          gen_random_uuid()::text)
   returning * into r;
+  update public.reservations set pin_hash = public._pin_hash(pin_salt, p_pin) where id = r.id;
 
   -- PRIMARY KEY(seat_id) 가 최종 안전장치: 이미 확정된 좌석이면 여기서 실패 → 전체 롤백
   insert into public.reservation_seats (seat_id, reservation_id)
@@ -384,6 +436,140 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
+-- 4-2. 관객 본인 예약 수정 (이름 + 연락처 + 본인 확인 코드)
+-- ---------------------------------------------------------------------
+
+-- 로그인: 일치하는 예약 목록. 실패 시 {"error":"PIN_MISMATCH"|"PIN_LOCKED"}
+create or replace function public.manage_login(p_name text, p_phone text, p_pin text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v_phone text; v_name text := btrim(coalesce(p_name, '')); matched jsonb;
+begin
+  perform public._check_pin(p_pin);
+  v_phone := public._norm_phone(p_phone);
+  perform 1 from public.reservations where status = 'confirmed' and phone = v_phone and name = v_name order by id for update;
+  if exists (select 1 from public.reservations where status = 'confirmed' and phone = v_phone and name = v_name
+              and pin_locked_until > now()) then
+    return jsonb_build_object('error', 'PIN_LOCKED');
+  end if;
+  select jsonb_agg(public._res_json(r) order by r.created_at) into matched
+    from public.reservations r
+   where status = 'confirmed' and phone = v_phone and name = v_name
+     and pin_hash is not null and pin_hash = public._pin_hash(pin_salt, p_pin);
+  if matched is null then
+    update public.reservations
+       set pin_fails = pin_fails + 1,
+           pin_locked_until = case when pin_fails + 1 >= 5 then now() + interval '15 minutes' else pin_locked_until end
+     where status = 'confirmed' and phone = v_phone and name = v_name and pin_hash is not null;
+    return jsonb_build_object('error', 'PIN_MISMATCH');
+  end if;
+  update public.reservations set pin_fails = 0, pin_locked_until = null
+   where status = 'confirmed' and phone = v_phone and name = v_name and pin_fails > 0
+     and pin_hash = public._pin_hash(pin_salt, p_pin);
+  return jsonb_build_object('reservations', matched);
+end $$;
+
+-- 예약자 이름·연락처 수정
+create or replace function public.update_my_info(p_reservation_no text, p_pin text, p_name text, p_phone text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare a jsonb; r public.reservations; cfg public.event_settings; v_phone text; v_name text := btrim(coalesce(p_name, '')); used int;
+begin
+  a := public._auth_reservation(p_reservation_no, p_pin);
+  if a ? 'error' then return a; end if;
+  select * into r from public.reservations where id = (a->>'id')::uuid;
+  if char_length(v_name) not between 1 and 30 then raise exception 'INVALID_NAME'; end if;
+  v_phone := public._norm_phone(p_phone);
+  if v_phone <> r.phone then
+    select * into cfg from public.event_settings where id = 1;
+    perform pg_advisory_xact_lock(hashtext('ito-phone:' || v_phone));
+    select coalesce(sum(cardinality(seat_ids)), 0) into used
+      from public.reservations where phone = v_phone and status = 'confirmed' and id <> r.id;
+    if used + cardinality(r.seat_ids) > cfg.max_seats_per_person then raise exception 'PHONE_LIMIT'; end if;
+  end if;
+  update public.reservations set name = v_name, phone = v_phone, updated_at = now() where id = r.id returning * into r;
+  return jsonb_build_object('reservation', public._res_json(r));
+end $$;
+
+-- 좌석 변경 (원자적): p_seat_ids = 변경 후 전체 좌석.
+-- 기존 좌석 중 유지할 좌석 + 이번 세션이 임시 점유한 새 좌석만 허용
+create or replace function public.change_my_seats(p_reservation_no text, p_pin text, p_session uuid, p_seat_ids text[]) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  a jsonb; r public.reservations; cfg public.event_settings;
+  ids text[]; new_ids text[]; dropped text[]; n int; ok int; used int;
+begin
+  a := public._auth_reservation(p_reservation_no, p_pin);
+  if a ? 'error' then return a; end if;
+  select * into r from public.reservations where id = (a->>'id')::uuid;
+  if r.picked_up then raise exception 'ALREADY_PICKED_UP'; end if;
+  if p_session is null then raise exception 'INVALID_SESSION'; end if;
+  select * into cfg from public.event_settings where id = 1;
+  if not cfg.reservation_open then raise exception 'CLOSED'; end if;
+
+  select array_agg(distinct x order by x) into ids from unnest(p_seat_ids) x where x is not null;
+  n := coalesce(array_length(ids, 1), 0);
+  if n = 0 then raise exception 'NO_SEATS'; end if;
+  if n > cfg.max_seats_per_person then raise exception 'LIMIT_EXCEEDED'; end if;
+
+  perform public._session_lock(p_session);
+  perform pg_advisory_xact_lock(hashtext('ito-phone:' || r.phone));
+  perform 1 from public.seats where id = any(ids || r.seat_ids) order by id for update;
+
+  select coalesce(array_agg(x), '{}') into new_ids from unnest(ids) x where not (x = any(r.seat_ids));
+  select coalesce(array_agg(x), '{}') into dropped from unnest(r.seat_ids) x where not (x = any(ids));
+
+  if cardinality(new_ids) = 0 and cardinality(dropped) = 0 then
+    return jsonb_build_object('reservation', public._res_json(r), 'unchanged', true);
+  end if;
+
+  if cardinality(new_ids) > 0 then
+    select count(*) into ok
+      from public.seats s join public.seat_holds h on h.seat_id = s.id
+     where s.id = any(new_ids) and s.status = 'held' and s.hold_expires_at > now() and h.session_id = p_session;
+    if ok <> cardinality(new_ids) then
+      if exists (select 1 from public.seats where id = any(new_ids) and status = 'reserved') then
+        raise exception 'ALREADY_RESERVED';
+      end if;
+      raise exception 'HOLD_EXPIRED';
+    end if;
+  end if;
+
+  select coalesce(sum(cardinality(seat_ids)), 0) into used
+    from public.reservations where phone = r.phone and status = 'confirmed' and id <> r.id;
+  if used + n > cfg.max_seats_per_person then raise exception 'PHONE_LIMIT'; end if;
+
+  -- 놓는 좌석 반환
+  delete from public.reservation_seats where reservation_id = r.id and seat_id = any(dropped);
+  update public.seats set status = 'available', hold_expires_at = null, updated_at = now()
+   where id = any(dropped) and status = 'reserved';
+  -- 새 좌석 확정 (PRIMARY KEY 가 최종 안전장치)
+  insert into public.reservation_seats (seat_id, reservation_id) select x, r.id from unnest(new_ids) x;
+  update public.seats set status = 'reserved', hold_expires_at = null, updated_at = now() where id = any(new_ids);
+  delete from public.seat_holds where seat_id = any(new_ids);
+
+  update public.reservations
+     set seat_ids = public._sorted_ids(ids), seat_labels = public._sorted_labels(ids), updated_at = now()
+   where id = r.id returning * into r;
+  return jsonb_build_object('reservation', public._res_json(r));
+end $$;
+
+-- 본인 예약 취소
+create or replace function public.cancel_my_reservation(p_reservation_no text, p_pin text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare a jsonb; r public.reservations;
+begin
+  a := public._auth_reservation(p_reservation_no, p_pin);
+  if a ? 'error' then return a; end if;
+  select * into r from public.reservations where id = (a->>'id')::uuid;
+  if r.picked_up then raise exception 'ALREADY_PICKED_UP'; end if;
+  perform 1 from public.seats where id = any(r.seat_ids) order by id for update;
+  delete from public.reservation_seats where reservation_id = r.id;
+  update public.seats set status = 'available', hold_expires_at = null, updated_at = now()
+   where id = any(r.seat_ids) and status = 'reserved';
+  update public.reservations set status = 'cancelled', cancelled_at = now(), updated_at = now() where id = r.id;
+  return jsonb_build_object('ok', true, 'reservation_no', r.reservation_no);
+end $$;
+
+-- ---------------------------------------------------------------------
 -- 5. 관리자 RPC (service_role 전용 — Vercel 서버 함수에서만 호출)
 -- ---------------------------------------------------------------------
 
@@ -407,7 +593,8 @@ language sql stable security definer set search_path = public as $$
         'id', id, 'reservation_no', reservation_no, 'name', name, 'phone', public._fmt_phone(phone),
         'seat_ids', to_jsonb(seat_ids), 'seats', to_jsonb(seat_labels), 'status', status,
         'picked_up', picked_up, 'picked_up_at', picked_up_at, 'source', source, 'memo', memo,
-        'created_at', created_at, 'cancelled_at', cancelled_at) order by created_at desc)
+        'has_pin', pin_hash is not null, 'pin_locked', coalesce(pin_locked_until > now(), false),
+        'created_at', created_at, 'updated_at', updated_at, 'cancelled_at', cancelled_at) order by created_at desc)
       from public.reservations), '[]'::jsonb),
     'server_time', now())
 $$;
@@ -442,7 +629,8 @@ language plpgsql security definer set search_path = public as $$
 begin
   if char_length(btrim(coalesce(p_name,''))) not between 1 and 30 then raise exception 'INVALID_NAME'; end if;
   update public.reservations
-     set name = btrim(p_name), phone = public._norm_phone(p_phone), memo = nullif(btrim(coalesce(p_memo,'')), '')
+     set name = btrim(p_name), phone = public._norm_phone(p_phone), memo = nullif(btrim(coalesce(p_memo,'')), ''),
+         updated_at = now()
    where id = p_id;
   if not found then raise exception 'NOT_FOUND'; end if;
   return jsonb_build_object('ok', true);
@@ -500,6 +688,19 @@ begin
   delete from public.seat_holds where seat_id = any(ids);
   update public.seats set status = 'reserved', hold_expires_at = null, updated_at = now() where id = any(ids);
   return jsonb_build_object('ok', true, 'reservation_no', r.reservation_no);
+end $$;
+
+-- 관객이 코드를 잊었을 때 관리자가 새 코드로 재설정 (잠금도 해제)
+create or replace function public.admin_reset_pin(p_id uuid, p_pin text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v_salt text := gen_random_uuid()::text;
+begin
+  perform public._check_pin(p_pin);
+  update public.reservations
+     set pin_salt = v_salt, pin_hash = public._pin_hash(v_salt, p_pin), pin_fails = 0, pin_locked_until = null
+   where id = p_id and status = 'confirmed';
+  if not found then raise exception 'NOT_FOUND'; end if;
+  return jsonb_build_object('ok', true);
 end $$;
 
 create or replace function public.admin_update_settings(p jsonb) returns jsonb
@@ -608,7 +809,11 @@ grant execute on function public.hold_seat(text, uuid)                          
 grant execute on function public.release_seat(text, uuid)                            to anon, authenticated;
 grant execute on function public.release_session(uuid)                               to anon, authenticated;
 grant execute on function public.my_holds(uuid)                                      to anon, authenticated;
-grant execute on function public.confirm_reservation(uuid, text[], text, text, boolean) to anon, authenticated;
+grant execute on function public.confirm_reservation(uuid, text[], text, text, boolean, text) to anon, authenticated;
+grant execute on function public.manage_login(text, text, text)                      to anon, authenticated;
+grant execute on function public.update_my_info(text, text, text, text)              to anon, authenticated;
+grant execute on function public.change_my_seats(text, text, uuid, text[])           to anon, authenticated;
+grant execute on function public.cancel_my_reservation(text, text)                   to anon, authenticated;
 grant execute on function public.lookup_reservation(text, text)                      to anon, authenticated;
 
 do $$ begin

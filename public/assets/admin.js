@@ -149,7 +149,7 @@
     $('#rows').innerHTML = list.length ? list.map((r) => `
       <tr class="${r.status === 'cancelled' ? 'cancelled' : ''}" data-id="${esc(r.id)}">
         <td class="resno">${hl(r.reservation_no)}</td>
-        <td class="name">${hl(r.name)}${r.source === 'admin' ? '<span class="tag admin">관리자 배정</span>' : ''}${r.memo ? `<div class="muted small" style="font-weight:400">${esc(r.memo)}</div>` : ''}</td>
+        <td class="name">${hl(r.name)}${r.source === 'admin' ? '<span class="tag admin">관리자 배정</span>' : ''}${r.updated_at && r.status === 'confirmed' ? `<span class="tag wait" title="최종 수정 ${esc(ITO.fmtDateTime(r.updated_at))}">수정됨</span>` : ''}${r.pin_locked ? '<span class="tag no">코드 잠김</span>' : ''}${r.memo ? `<div class="muted small" style="font-weight:400">${esc(r.memo)}</div>` : ''}</td>
         <td class="phone">${esc(r.phone)}</td>
         <td class="seats-cell">${(r.seats || []).map(esc).join(', ') || '<span class="muted">-</span>'}</td>
         <td class="num">${r.seat_ids.length}</td>
@@ -180,6 +180,21 @@
     const c = e.target.closest('[data-cancel]'); if (c) return confirmCancel(c.dataset.cancel);
   });
 
+  function resetPin(r) {
+    ITO.modal({
+      title: `본인 확인 코드 재설정 · ${r.reservation_no}`,
+      body: `<p>관객이 코드를 잊었거나 잠긴 경우, <b>본인임을 확인한 뒤</b> 새 코드를 정해 알려 주세요. 잠금도 함께 풀립니다.</p>
+        <div class="field"><label for="rp-pin">새 코드 (숫자 4~6자리)</label><input class="input" id="rp-pin" inputmode="numeric" maxlength="6" autocomplete="off"></div>`,
+      onOpen: (b) => $('#rp-pin', b).addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); }),
+      actions: [{ label: '취소' }, { label: '재설정', primary: true, onClick: async (b) => {
+        const pin = $('#rp-pin', b).value;
+        if (!/^\d{4,6}$/.test(pin)) { ITO.toast(ITO.message({ code: 'INVALID_PIN' }), 'error'); return false; }
+        try { await api.resetPin(r.id, pin); ITO.toast(`${r.reservation_no} 의 코드를 재설정했습니다. 관객에게 새 코드를 알려 주세요.`, 'ok'); refresh(); }
+        catch (e) { guard(e); throw e; }
+      } }],
+    });
+  }
+
   async function confirmCancel(id) {
     const r = st.overview.reservations.find((x) => x.id === id); if (!r) return;
     const ok = await ITO.modal({
@@ -199,7 +214,8 @@
       body: `<ul class="confirm-list">
           <li><span>상태</span><span>${live ? (r.picked_up ? '<span class="tag ok">현장 수령 완료</span> ' + esc(ITO.fmtDateTime(r.picked_up_at)) : '<span class="tag wait">미수령</span>') : '<span class="tag no">취소됨</span> ' + esc(ITO.fmtDateTime(r.cancelled_at))}</span></li>
           <li><span>예약 좌석</span><span>${r.seats.map(esc).join('<br>') || '-'}</span></li>
-          <li><span>예약 일시</span><span>${esc(ITO.fmtDateTime(r.created_at))} · ${r.source === 'admin' ? '관리자 배정' : '온라인 예약'}</span></li>
+          <li><span>예약 일시</span><span>${esc(ITO.fmtDateTime(r.created_at))} · ${r.source === 'admin' ? '관리자 배정' : '온라인 예약'}${r.updated_at ? `<br>최종 수정 ${esc(ITO.fmtDateTime(r.updated_at))}` : ''}</span></li>
+          <li><span>본인 확인 코드</span><span>${r.has_pin ? (r.pin_locked ? '<span class="tag no">잠김 (5회 오류)</span>' : '설정됨') : '없음'} <small class="muted">· 코드는 암호화되어 관리자도 볼 수 없습니다</small></span></li>
         </ul>
         <div class="grid2" style="margin-top:14px">
           <div class="field"><label for="d-name">신청자 이름</label><input class="input" id="d-name" maxlength="30" value="${esc(r.name)}" ${live ? '' : 'disabled'}></div>
@@ -209,6 +225,7 @@
       onOpen: (b) => ITO.bindPhoneInput($('#d-phone', b)),
       actions: live ? [
         { label: '예약 취소', danger: true, onClick: async () => { const ok = await confirmCancel(id); if (!ok) return false; } },
+        { label: '코드 재설정', onClick: () => { resetPin(r); return false; } },
         { label: r.picked_up ? '수령 해제' : '수령 완료 처리', onClick: async () => { try { await api.pickup(id, !r.picked_up); ITO.toast('수령 상태를 변경했습니다.', 'ok'); refresh(); } catch (e) { guard(e); throw e; } } },
         { label: '정보 저장', primary: true, onClick: async (b) => {
           try { await api.updateReservation(id, $('#d-name', b).value, $('#d-phone', b).value, $('#d-memo', b).value); ITO.toast('예약자 정보를 저장했습니다.', 'ok'); refresh(); }
@@ -229,10 +246,10 @@
 
   $('#btn-xlsx').addEventListener('click', () => {
     const all = st.overview.reservations.slice().sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
-    const head = ['번호', '예약번호', '신청자', '연락처', '예약 좌석', '매수', '예약 일시', '수령 여부', '수령 시각', '상태', '예약 경로', '메모'];
+    const head = ['번호', '예약번호', '신청자', '연락처', '예약 좌석', '매수', '예약 일시', '수령 여부', '수령 시각', '상태', '예약 경로', '메모', '최종 수정'];
     const rows = all.map((r, i) => [i + 1, r.reservation_no, r.name, r.phone, r.seats.join(', '), r.seat_ids.length, ITO.fmtDateTime(r.created_at),
       r.status === 'confirmed' ? (r.picked_up ? '수령 완료' : '미수령') : '-', r.picked_up_at ? ITO.fmtDateTime(r.picked_up_at) : '',
-      r.status === 'confirmed' ? '예약 확정' : '취소', r.source === 'admin' ? '관리자 배정' : '온라인', r.memo || '']);
+      r.status === 'confirmed' ? '예약 확정' : '취소', r.source === 'admin' ? '관리자 배정' : '온라인', r.memo || '', r.updated_at ? ITO.fmtDateTime(r.updated_at) : '']);
     const seatHead = ['좌석', '층', '열', '번호', '예약번호', '신청자', '연락처', '수령 여부'];
     const seatRows = [];
     for (const r of all) if (r.status === 'confirmed') r.seat_ids.forEach((id, i) => {
@@ -245,8 +262,8 @@
       if (!window.XLSX) throw new Error('no xlsx');
       const wb = XLSX.utils.book_new();
       const ws1 = XLSX.utils.aoa_to_sheet([head, ...rows]);
-      ws1['!cols'] = [6, 16, 10, 15, 34, 6, 17, 10, 17, 10, 11, 24].map((w) => ({ wch: w }));
-      ws1['!autofilter'] = { ref: `A1:L${rows.length + 1}` };
+      ws1['!cols'] = [6, 16, 10, 15, 34, 6, 17, 10, 17, 10, 11, 24, 17].map((w) => ({ wch: w }));
+      ws1['!autofilter'] = { ref: `A1:M${rows.length + 1}` };
       const ws2 = XLSX.utils.aoa_to_sheet([seatHead, ...seatRows.map((x) => x.v)]);
       ws2['!cols'] = [22, 6, 5, 5, 16, 10, 15, 10].map((w) => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, ws1, '예약자 목록');

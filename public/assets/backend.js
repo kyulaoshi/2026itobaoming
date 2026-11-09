@@ -44,6 +44,8 @@
     if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
     return d;
   }
+  // 본인 확인 함수는 실패 시 예외 대신 {"error":…} 를 돌려줌 (실패 횟수 기록 유지 목적)
+  const unwrap = (key) => (data) => { if (data && data.error) throw err(data.error); return data ? data[key] : null; };
   ITO.uuid = uuid; ITO.sessionId = sessionId; ITO.digits = digits; ITO.fmtPhoneDigits = fmtPhone;
 
   function cfg() {
@@ -133,9 +135,13 @@
       release: (seatId) => rpc('release_seat', { p_seat_id: seatId, p_session: sid }),
       releaseAll: () => rpc('release_session', { p_session: sid }),
       myHolds: () => rpc('my_holds', { p_session: sid }),
-      confirm: ({ seatIds, name, phone, agree }) =>
-        rpc('confirm_reservation', { p_session: sid, p_seat_ids: seatIds, p_name: name, p_phone: phone, p_agree: agree }),
+      confirm: ({ seatIds, name, phone, agree, pin }) =>
+        rpc('confirm_reservation', { p_session: sid, p_seat_ids: seatIds, p_name: name, p_phone: phone, p_agree: agree, p_pin: pin }),
       lookup: (name, phone) => rpc('lookup_reservation', { p_name: name, p_phone: phone }),
+      manageLogin: (name, phone, pin) => rpc('manage_login', { p_name: name, p_phone: phone, p_pin: pin }).then(unwrap('reservations')),
+      updateMyInfo: (no, pin, name, phone) => rpc('update_my_info', { p_reservation_no: no, p_pin: pin, p_name: name, p_phone: phone }).then(unwrap('reservation')),
+      changeMySeats: (no, pin, seatIds) => rpc('change_my_seats', { p_reservation_no: no, p_pin: pin, p_session: sid, p_seat_ids: seatIds }).then(unwrap('reservation')),
+      cancelMy: (no, pin) => rpc('cancel_my_reservation', { p_reservation_no: no, p_pin: pin }).then(unwrap('ok')),
       cleanup: () => rpc('cleanup_expired_holds').catch(() => 0),
     };
   }
@@ -169,6 +175,7 @@
       updateReservation: (id, name, phone, memo) => call('update_reservation', { id, name, phone, memo }),
       setSeatStatus: (seatId, status) => call('set_seat_status', { seatId, status }),
       createReservation: (seatIds, name, phone, memo) => call('create_reservation', { seatIds, name, phone, memo }),
+      resetPin: (id, pin) => call('reset_pin', { id, pin }),
       updateSettings: (settings) => call('update_settings', { settings }),
       saveLayout: (sections, dsl) => call('save_layout', { sections, dsl }),
     };
@@ -177,7 +184,7 @@
   /* =================================================================
    *  DEMO — 브라우저 내 시뮬레이션 (실제 DB 로직을 그대로 흉내냄)
    * ================================================================= */
-  const DEMO_KEY = 'ito-demo-v5';
+  const DEMO_KEY = 'ito-demo-v6';
   const DEMO_NAMES = ['김민준', '이서연', '박지호', '최하은', '정우진', '강수아', '조현우', '윤지민', '장도윤', '임채원',
     '한예준', '오유나', '서준서', '신하린', '권시우', '황소율', '안지안', '송이준', '류서아', '전태윤'];
 
@@ -207,6 +214,7 @@
       const front = seat.floor === 1 && seat.section === '1C' && seat.row_no <= 9 ? 0.6 : seat.floor === 1 ? 0.3 : 0.12;
       if (Math.random() < front && n < 420) {
         demoReserve(s, [id], DEMO_NAMES[n % DEMO_NAMES.length], '010' + String(10000000 + n * 7919).slice(0, 8), 'online', null, null);
+        s.reservations[s.reservations.length - 1].pin = demoPin('1234');
         if (Math.random() < 0.15) s.reservations[s.reservations.length - 1].picked_up = true;
         n++;
       }
@@ -378,8 +386,9 @@
         return n;
       }),
       myHolds: () => delay(activeHolds(demo.get()).map(([id]) => ({ seat_id: id, expires_at: demo.get().seats[id].hold_expires_at }))),
-      confirm: ({ seatIds, name, phone, agree }) => run((s) => {
+      confirm: ({ seatIds, name, phone, agree, pin }) => run((s) => {
         if (!agree) throw err('AGREE_REQUIRED');
+        if (!/^\d{4,6}$/.test(pin || '')) throw err('INVALID_PIN');
         name = String(name || '').trim();
         if (name.length < 1 || name.length > 30) throw err('INVALID_NAME');
         const p = normPhone(phone);
@@ -399,6 +408,7 @@
         const used = s.reservations.filter((r) => r.phone === p && r.status === 'confirmed').reduce((a, r) => a + r.seat_ids.length, 0);
         if (used + ids.length > s.settings.max_seats_per_person) throw err('PHONE_LIMIT');
         const r = demoReserve(s, ids, name, p, 'online', null, sid);
+        r.pin = demoPin(pin); r.pin_fails = 0;
         return { reservation_no: r.reservation_no, name: r.name, phone: fmtPhone(r.phone), seats: r.seat_labels, seat_ids: r.seat_ids, created_at: r.created_at, duplicate: false };
       }),
       lookup: async (name, phone) => {
@@ -407,7 +417,65 @@
           .map((r) => ({ reservation_no: r.reservation_no, name: r.name, phone: fmtPhone(r.phone), seats: r.seat_labels, picked_up: r.picked_up, created_at: r.created_at }));
       },
       cleanup: async () => demo.tx((s) => demoCleanup(s).length),
+      manageLogin: (name, phone, pin) => run((s) => {
+        if (!/^\d{4,6}$/.test(pin || '')) throw err('INVALID_PIN');
+        const p = normPhone(phone); const list = s.reservations.filter((r) => r.status === 'confirmed' && r.phone === p && r.name === String(name).trim());
+        if (list.some((r) => r.pin_locked_until > Date.now())) return { error: 'PIN_LOCKED' };
+        const ok = list.filter((r) => r.pin && r.pin === demoPin(pin));
+        if (!ok.length) { list.forEach((r) => { if (r.pin) { r.pin_fails = (r.pin_fails || 0) + 1; if (r.pin_fails >= 5) r.pin_locked_until = Date.now() + 15 * 60000; } }); return { error: 'PIN_MISMATCH' }; }
+        ok.forEach((r) => { r.pin_fails = 0; r.pin_locked_until = 0; });
+        return { reservations: ok.map(resJson) };
+      }).then(unwrap('reservations')),
+      updateMyInfo: (no, pin, name, phone) => run((s) => {
+        const r = demoAuth(s, no, pin); if (r.error) return r;
+        name = String(name || '').trim(); if (!name || name.length > 30) throw err('INVALID_NAME');
+        const p = normPhone(phone);
+        if (p !== r.phone) {
+          const used = s.reservations.filter((x) => x.phone === p && x.status === 'confirmed' && x.id !== r.id).reduce((a, x) => a + x.seat_ids.length, 0);
+          if (used + r.seat_ids.length > s.settings.max_seats_per_person) throw err('PHONE_LIMIT');
+        }
+        r.name = name; r.phone = p; r.updated_at = new Date().toISOString();
+        return { reservation: resJson(r) };
+      }).then(unwrap('reservation')),
+      changeMySeats: (no, pin, seatIds) => run((s) => {
+        const r = demoAuth(s, no, pin); if (r.error) return r;
+        if (r.picked_up) throw err('ALREADY_PICKED_UP');
+        if (!s.settings.reservation_open) throw err('CLOSED');
+        const ids = [...new Set(seatIds)]; if (!ids.length) throw err('NO_SEATS');
+        if (ids.length > s.settings.max_seats_per_person) throw err('LIMIT_EXCEEDED');
+        const added = ids.filter((i) => !r.seat_ids.includes(i)); const dropped = r.seat_ids.filter((i) => !ids.includes(i));
+        if (!added.length && !dropped.length) return { reservation: resJson(r) };
+        const now = Date.now();
+        if (!added.every((i) => s.seats[i] && s.seats[i].status === 'held' && new Date(s.seats[i].hold_expires_at).getTime() > now && s.holds[i] && s.holds[i].session_id === sid)) {
+          if (added.some((i) => s.seats[i] && s.seats[i].status === 'reserved')) throw err('ALREADY_RESERVED');
+          throw err('HOLD_EXPIRED');
+        }
+        const used = s.reservations.filter((x) => x.phone === r.phone && x.status === 'confirmed' && x.id !== r.id).reduce((a, x) => a + x.seat_ids.length, 0);
+        if (used + ids.length > s.settings.max_seats_per_person) throw err('PHONE_LIMIT');
+        for (const i of dropped) { s.seats[i].status = 'available'; s.seats[i].hold_expires_at = null; }
+        for (const i of added) { s.seats[i].status = 'reserved'; s.seats[i].hold_expires_at = null; delete s.holds[i]; }
+        r.seat_ids = sortIds(s, ids); r.seat_labels = r.seat_ids.map((i) => s.seats[i].label); r.updated_at = new Date().toISOString();
+        return { reservation: resJson(r) };
+      }).then(unwrap('reservation')),
+      cancelMy: (no, pin) => run((s) => {
+        const r = demoAuth(s, no, pin); if (r.error) return r;
+        if (r.picked_up) throw err('ALREADY_PICKED_UP');
+        for (const i of r.seat_ids) if (s.seats[i] && s.seats[i].status === 'reserved') s.seats[i].status = 'available';
+        r.status = 'cancelled'; r.cancelled_at = r.updated_at = new Date().toISOString();
+        return { ok: true };
+      }).then(unwrap('ok')),
     };
+  }
+  // 데모 전용 (실제 서비스는 DB 에서 salt + SHA-256 으로 처리)
+  function demoPin(pin) { let h = 7; for (const c of 'ito-demo:' + pin) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 'd' + h.toString(36); }
+  function resJson(r) { return { reservation_no: r.reservation_no, name: r.name, phone: fmtPhone(r.phone), seats: r.seat_labels, seat_ids: r.seat_ids, picked_up: r.picked_up, created_at: r.created_at, updated_at: r.updated_at || null }; }
+  function demoAuth(s, no, pin) {
+    const r = s.reservations.find((x) => x.reservation_no === String(no || '').trim().toUpperCase() && x.status === 'confirmed');
+    if (!r) return { error: 'PIN_MISMATCH' };
+    if (!r.pin) return { error: 'NO_PIN' };
+    if (r.pin_locked_until > Date.now()) return { error: 'PIN_LOCKED' };
+    if (r.pin !== demoPin(pin)) { r.pin_fails = (r.pin_fails || 0) + 1; if (r.pin_fails >= 5) { r.pin_locked_until = Date.now() + 15 * 60000; return { error: 'PIN_LOCKED' }; } return { error: 'PIN_MISMATCH' }; }
+    r.pin_fails = 0; r.pin_locked_until = 0; return r;
   }
 
   function createDemoAdmin() {
@@ -444,7 +512,7 @@
             cancelled: s.reservations.length - conf.length,
           },
           reservations: s.reservations.slice().sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-            .map((r) => ({ ...r, phone: fmtPhone(r.phone), seats: r.seat_labels })),
+            .map((r) => ({ ...r, pin: undefined, phone: fmtPhone(r.phone), seats: r.seat_labels, has_pin: !!r.pin, pin_locked: r.pin_locked_until > Date.now() })),
           server_time: new Date().toISOString(),
         }));
       }),
@@ -462,7 +530,7 @@
       updateReservation: (id, name, phone, memo) => run((s) => {
         const r = s.reservations.find((x) => x.id === id); if (!r) throw err('NOT_FOUND');
         name = String(name || '').trim(); if (!name || name.length > 30) throw err('INVALID_NAME');
-        r.name = name; r.phone = normPhone(phone); r.memo = String(memo || '').trim() || null; return { ok: true };
+        r.name = name; r.phone = normPhone(phone); r.memo = String(memo || '').trim() || null; r.updated_at = new Date().toISOString(); return { ok: true };
       }),
       setSeatStatus: (seatId, status) => run((s) => {
         const seat = s.seats[seatId]; if (!seat) throw err('NOT_FOUND');
@@ -486,6 +554,11 @@
         const r = demoReserve(s, ids, name, p, 'admin', memo, null);
         r.created_at = new Date().toISOString();
         return { ok: true, reservation_no: r.reservation_no };
+      }),
+      resetPin: (id, pin) => run((s) => {
+        if (!/^\d{4,6}$/.test(pin || '')) throw err('INVALID_PIN');
+        const r = s.reservations.find((x) => x.id === id && x.status === 'confirmed'); if (!r) throw err('NOT_FOUND');
+        r.pin = demoPin(pin); r.pin_fails = 0; r.pin_locked_until = 0; return { ok: true };
       }),
       updateSettings: (settings) => run((s) => {
         const x = { ...settings };

@@ -39,7 +39,7 @@ echo "▶ 3. 같은 좌석 최종 확정 경쟁 (온라인 확정 vs 관리자 �
 reset
 S1=$(q "select gen_random_uuid()")
 q "set role anon; select hold_seat('1-A-5','$S1');" >/dev/null
-psql -X -qtA -c "set role anon; select confirm_reservation('$S1', array['1-A-5'], '홍길동', '010-1234-5678', true);" >/tmp/c1.txt 2>&1 &
+psql -X -qtA -c "set role anon; select confirm_reservation('$S1', array['1-A-5'], '홍길동', '010-1234-5678', true, '1234');" >/tmp/c1.txt 2>&1 &
 psql -X -qtA -c "set role service_role; select admin_create_reservation(array['1-A-5'], '관리자배정', '010-9999-0000', null);" >/tmp/c2.txt 2>&1 &
 wait
 n=$(q "select count(*) from reservation_seats where seat_id='1-A-5'")
@@ -52,7 +52,7 @@ reset
 S=$(q "select gen_random_uuid()")
 q "set role anon; select hold_seat('1-B-16','$S'); select hold_seat('1-B-17','$S');" >/dev/null
 for i in 1 2 3 4 5; do
-  psql -X -qtA -c "set role anon; select confirm_reservation('$S', array['1-B-17','1-B-16'], '김철수', '01022223333', true);" >/tmp/dup_$i.txt 2>&1 &
+  psql -X -qtA -c "set role anon; select confirm_reservation('$S', array['1-B-17','1-B-16'], '김철수', '01022223333', true, '1234');" >/tmp/dup_$i.txt 2>&1 &
 done; wait
 check "예약은 1건만 생성" "$(q "select count(*) from reservations")" "1"
 check "5번 모두 같은 예약번호 응답" "$(cat /tmp/dup_*.txt | grep -o 'ITO-[0-9]*-[0-9]*' | sort -u | wc -l)" "1"
@@ -67,7 +67,7 @@ S1=$(q "select gen_random_uuid()"); S2=$(q "select gen_random_uuid()")
 q "set role anon; select hold_seat('1-C-40','$S1');" >/dev/null
 out=$(anon "select hold_seat('1-C-40','$S2');"); [[ "$out" == *HELD_BY_OTHER* ]] && ok "점유 중 좌석은 다른 사용자 선택 불가" || bad "$out"
 q "update seats set hold_expires_at = now() - interval '1 second' where id='1-C-40'; update seat_holds set expires_at = now() - interval '1 second' where seat_id='1-C-40';" >/dev/null
-out=$(anon "select confirm_reservation('$S1', array['1-C-40'], '홍길동', '01012345678', true);"); [[ "$out" == *HOLD_EXPIRED* ]] && ok "만료 후에는 예약 확정 불가" || bad "$out"
+out=$(anon "select confirm_reservation('$S1', array['1-C-40'], '홍길동', '01012345678', true, '1234');"); [[ "$out" == *HOLD_EXPIRED* ]] && ok "만료 후에는 예약 확정 불가" || bad "$out"
 check "cleanup_expired_holds 가 1석 해제" "$(anon "select cleanup_expired_holds();")" "1"
 check "만료 좌석은 다시 예약 가능 상태" "$(q "select status from seats where id='1-C-40'")" "available"
 out=$(anon "select hold_seat('1-C-40','$S2');"); [[ "$out" == *seat_id* ]] && ok "다른 사용자가 이어서 점유 가능" || bad "$out"
@@ -78,14 +78,14 @@ q "update event_settings set max_seats_per_person=2" >/dev/null
 S=$(q "select gen_random_uuid()")
 anon "select hold_seat('1-F-16','$S'); select hold_seat('1-F-17','$S');" >/dev/null
 out=$(anon "select hold_seat('1-F-18','$S');"); [[ "$out" == *LIMIT_EXCEEDED* ]] && ok "세션당 최대 2석 초과 차단" || bad "$out"
-anon "select confirm_reservation('$S', array['1-F-16','1-F-17'], '이영희', '010-5555-6666', true);" >/dev/null
+anon "select confirm_reservation('$S', array['1-F-16','1-F-17'], '이영희', '010-5555-6666', true, '1234');" >/dev/null
 S3=$(q "select gen_random_uuid()")
 anon "select hold_seat('1-G-16','$S3');" >/dev/null
-out=$(anon "select confirm_reservation('$S3', array['1-G-16'], '이영희', '01055556666', true);"); [[ "$out" == *PHONE_LIMIT* ]] && ok "같은 연락처 추가 예약 한도 차단" || bad "$out"
-out=$(anon "select confirm_reservation('$S3', array['1-G-16'], '', '01055556666', true);");    [[ "$out" == *INVALID_NAME* ]] && ok "이름 누락 차단" || bad "$out"
-out=$(anon "select confirm_reservation('$S3', array['1-G-16'], '박', '0212345678', true);");    [[ "$out" == *INVALID_PHONE* ]] && ok "잘못된 연락처 차단" || bad "$out"
-out=$(anon "select confirm_reservation('$S3', array['1-G-16'], '박', '01012341234', false);");  [[ "$out" == *AGREE_REQUIRED* ]] && ok "개인정보 동의 누락 차단" || bad "$out"
-out=$(anon "select confirm_reservation('$S', array['1-G-16'], '박', '01012341234', true);");    [[ "$out" == *HOLD_EXPIRED* ]] && ok "다른 사람이 점유한 좌석으로 확정 시도 차단" || bad "$out"
+out=$(anon "select confirm_reservation('$S3', array['1-G-16'], '이영희', '01055556666', true, '1234');"); [[ "$out" == *PHONE_LIMIT* ]] && ok "같은 연락처 추가 예약 한도 차단" || bad "$out"
+out=$(anon "select confirm_reservation('$S3', array['1-G-16'], '', '01055556666', true, '1234');");    [[ "$out" == *INVALID_NAME* ]] && ok "이름 누락 차단" || bad "$out"
+out=$(anon "select confirm_reservation('$S3', array['1-G-16'], '박', '0212345678', true, '1234');");    [[ "$out" == *INVALID_PHONE* ]] && ok "잘못된 연락처 차단" || bad "$out"
+out=$(anon "select confirm_reservation('$S3', array['1-G-16'], '박', '01012341234', false, '1234');");  [[ "$out" == *AGREE_REQUIRED* ]] && ok "개인정보 동의 누락 차단" || bad "$out"
+out=$(anon "select confirm_reservation('$S', array['1-G-16'], '박', '01012341234', true, '1234');");    [[ "$out" == *HOLD_EXPIRED* ]] && ok "다른 사람이 점유한 좌석으로 확정 시도 차단" || bad "$out"
 
 echo "▶ 7. 예약 취소 · 좌석 차단 · 현장 수령"
 RID=$(q "select id from reservations limit 1")
@@ -104,7 +104,7 @@ for i in $(seq 1 300); do
   ( r=$((RANDOM % 30)); rows=(A B C); row=${rows[$((r/10))]}; col=$(( r%10 + 16 ))
     psql -X -qtA -c "set role anon; do \$\$ declare s uuid := gen_random_uuid(); begin
         perform hold_seat('1-$row-$col', s);
-        perform confirm_reservation(s, array['1-$row-$col'], '관객$i', '010' || lpad('$i',8,'0'), true);
+        perform confirm_reservation(s, array['1-$row-$col'], '관객$i', '010' || lpad('$i',8,'0'), true, '1234');
       exception when others then null; end \$\$;" >/dev/null 2>&1 ) &
 done; wait
 check "좌석당 확정 예약 최대 1건 (중복 0건)" "$(q "select count(*) from (select unnest(seat_ids) s from reservations where status='confirmed') x group by s having count(*)>1" | wc -l)" "0"
@@ -118,6 +118,48 @@ check "휠체어석 수" "$(q "select count(*) from seats where kind='wheelchair
 echo "▶ 10. 좌석 배치 변경 보호"
 out=$(psql -X -qtA -c "set role service_role; select admin_save_layout('[{\"code\":\"1L\",\"floor\":1,\"name\":\"x\",\"sort\":1,\"rows\":[{\"r\":\"A\",\"idx\":1,\"seats\":[5]}]}]');" 2>&1)
 [[ "$out" == *LAYOUT_CONFLICT* ]] && ok "예약된 좌석을 없애는 배치 변경 거부" || bad "$out"
+
+echo "▶ 11. 본인 확인 코드로 예약 수정"
+reset
+S=$(q "select gen_random_uuid()")
+anon "select hold_seat('1-H-20','$S'); select hold_seat('1-H-21','$S');" >/dev/null
+out=$(anon "select confirm_reservation('$S', array['1-H-20','1-H-21'], '박지민', '010-7777-8888', true, '12ab');"); [[ "$out" == *INVALID_PIN* ]] && ok "숫자 4~6자리가 아닌 코드 거부" || bad "$out"
+RN=$(anon "select confirm_reservation('$S', array['1-H-20','1-H-21'], '박지민', '010-7777-8888', true, '4321')->>'reservation_no';")
+check "코드 원문은 저장되지 않음" "$(q "select count(*) from reservations where pin_hash like '%4321%' or pin_salt like '%4321%'")" "0"
+out=$(anon "select manage_login('박지민','01077778888','0000');"); [[ "$out" == *PIN_MISMATCH* ]] && ok "틀린 코드로 로그인 거부" || bad "$out"
+check "실패 횟수는 롤백되지 않고 기록됨" "$(q "select pin_fails from reservations where reservation_no='$RN'")" "1"
+out=$(anon "select manage_login('박지민','01077778888','4321');"); [[ "$out" == *"$RN"* ]] && ok "이름+연락처+코드로 로그인" || bad "$out"
+check "성공 시 실패 횟수 초기화" "$(q "select pin_fails from reservations where reservation_no='$RN'")" "0"
+out=$(anon "select update_my_info('$RN','4321','박지민B','010-7777-9999');"); [[ "$out" == *"010-7777-9999"* ]] && ok "예약자 정보 수정" || bad "$out"
+# 좌석 변경: 20번 유지, 21번 → 1-H-25
+S2=$(q "select gen_random_uuid()")
+anon "select hold_seat('1-H-25','$S2');" >/dev/null
+out=$(anon "select change_my_seats('$RN','4321','$S2', array['1-H-20','1-H-25']);"); [[ "$out" == *"1층 H열 25번"* ]] && ok "좌석 변경 (1석 유지 + 1석 교체)" || bad "$out"
+check "놓은 좌석은 예약 가능으로 반환" "$(q "select status from seats where id='1-H-21'")" "available"
+check "새 좌석은 예약 완료" "$(q "select status from seats where id='1-H-25'")" "reserved"
+check "예약번호는 그대로" "$(q "select count(*) from reservations where reservation_no='$RN' and seat_ids='{1-H-20,1-H-25}'")" "1"
+out=$(anon "select change_my_seats('$RN','4321','$S2', array['1-H-20','1-B-16']);"); [[ "$out" == *HOLD_EXPIRED* ]] && ok "점유하지 않은 좌석으로 변경 거부" || bad "$out"
+# 다른 사람의 예약석으로 변경 시도
+S3=$(q "select gen_random_uuid()"); anon "select hold_seat('1-H-30','$S3');" >/dev/null
+anon "select confirm_reservation('$S3', array['1-H-30'], '타인', '01011112222', true, '9999');" >/dev/null
+out=$(anon "select change_my_seats('$RN','4321','$S2', array['1-H-30']);"); [[ "$out" == *ALREADY_RESERVED* ]] && ok "남의 예약석으로 변경 거부" || bad "$out"
+# 동시성: 두 사람이 같은 빈 좌석을 놓고 (A: 좌석 변경, B: 신규 예약) 동시에
+SA=$(q "select gen_random_uuid()"); SB=$(q "select gen_random_uuid()")
+anon "select hold_seat('1-J-20','$SA');" >/dev/null
+psql -X -qtA -c "set role anon; select change_my_seats('$RN','4321','$SA', array['1-H-20','1-J-20']);" >/tmp/ca.txt 2>&1 &
+psql -X -qtA -c "set role anon; select hold_seat('1-J-20','$SB');" >/tmp/cb.txt 2>&1 &
+wait
+check "좌석 변경 중인 좌석을 타인이 가로챌 수 없음" "$(q "select count(*) from reservation_seats where seat_id='1-J-20'")" "1"
+# 5회 실패 → 잠금
+for i in 1 2 3 4 5; do anon "select cancel_my_reservation('$RN','0000');" >/dev/null; done
+out=$(anon "select cancel_my_reservation('$RN','4321');"); [[ "$out" == *PIN_LOCKED* ]] && ok "5회 실패 후 맞는 코드도 잠금" || bad "$out"
+q "set role service_role; select admin_reset_pin((select id from reservations where reservation_no='$RN'), '5555');" >/dev/null
+out=$(anon "select cancel_my_reservation('$RN','4321');"); [[ "$out" == *PIN_MISMATCH* ]] && ok "관리자 재설정 후 옛 코드 무효" || bad "$out"
+q "update reservations set picked_up=true where reservation_no='$RN'" >/dev/null
+out=$(anon "select cancel_my_reservation('$RN','5555');"); [[ "$out" == *ALREADY_PICKED_UP* ]] && ok "현장 수령 후 취소 불가" || bad "$out"
+q "update reservations set picked_up=false where reservation_no='$RN'" >/dev/null
+out=$(anon "select cancel_my_reservation('$RN','5555');"); [[ "$out" == *'"ok": true'* ]] && ok "새 코드로 본인 취소" || bad "$out"
+check "취소 후 좌석 반환" "$(q "select string_agg(status, ',' order by id) from seats where id in ('1-H-20','1-J-20')")" "available,available"
 
 echo
 echo "결과: 통과 $PASS / 실패 $FAIL"
