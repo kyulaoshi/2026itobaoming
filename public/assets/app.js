@@ -447,6 +447,7 @@
     });
   }
   $('#btn-lookup').addEventListener('click', () => openLookup());
+  $$('[data-lookup]').forEach((b) => b.addEventListener('click', () => openLookup()));
 
   /* ---------- 내 예약 관리 ---------- */
   function renderManage() {

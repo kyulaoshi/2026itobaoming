@@ -9,6 +9,7 @@
   <meta property="og:title" content="인천교사오케스트라 제9회 정기연주회 · 무료 좌석 예약">
   <meta property="og:description" content="2026. 12. 9.(수) 19:00 인천문화예술회관 대공연장 · 전석 무료 · 원하는 좌석을 직접 선택해 예약하세요.">
   <meta property="og:type" content="website">
+  <link rel="preload" as="image" href="assets/logo-gold.webp">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306070c'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%23d4af5f' stroke-width='3'/%3E%3Ctext x='32' y='41' font-family='serif' font-size='24' text-anchor='middle' fill='%23d4af5f'%3EI%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,8 +25,8 @@
   <header class="site-header">
     <div class="container">
       <a class="brand" href="#" data-go="home" aria-label="인천교사오케스트라 홈">
-        <span class="brand-emblem" data-emblem></span>
-        <span class="brand-text"><strong>인천교사오케스트라</strong><small>Incheon Teachers Orchestra</small></span>
+        <img class="brand-logo" src="assets/logo-gold.webp" alt="Incheon Teachers Orchestra" width="52" height="48">
+        <span class="brand-text"><strong>인천교사오케스트라</strong><small>제9회 정기연주회</small></span>
       </a>
       <nav class="nav" aria-label="주요 메뉴">
         <a href="#about" class="hide-m" data-go="about">공연 안내</a>
@@ -40,6 +41,7 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-light" aria-hidden="true"><div class="beam"></div><svg class="pipes" id="pipes" viewBox="0 0 1100 320" preserveAspectRatio="xMidYMax meet"></svg><div class="dust"></div></div>
       <div class="container hero-inner">
+        <img class="hero-logo" src="assets/logo-gold.webp" alt="Incheon Teachers Orchestra 로고" width="160" height="147">
         <div class="kicker" data-bind="kicker">ITO Symphony Series · The 9th Concert</div>
         <div class="ornament"><i></i></div>
         <h1 id="hero-title" data-bind="title">인천교사오케스트라 제9회 정기연주회</h1>
@@ -53,7 +55,8 @@
         <div class="hero-cta">
           <div class="cta-row">
             <button type="button" class="btn btn-gold btn-lg" data-go="seats">좌석 예약하기</button>
-            <a class="btn btn-ghost btn-lg" data-pamphlet target="_blank" rel="noopener" hidden>전자 팸플릿 보기</a>
+            <button type="button" class="btn btn-ghost btn-lg" data-lookup>예약 확인</button>
+            <a class="btn btn-ghost btn-lg" data-pamphlet target="_blank" rel="noopener" hidden>프로그램북 보기</a>
           </div>
           <div class="avail-pill" id="hero-avail">좌석 정보를 불러오는 중…</div>
         </div>
@@ -84,7 +87,7 @@
             <div class="card" id="program-card" hidden>
               <h3>프로그램</h3>
               <ol class="program-list" id="program-list"></ol>
-              <a class="btn btn-ghost btn-sm" data-pamphlet target="_blank" rel="noopener" style="margin-top:16px" hidden>전자 팸플릿에서 자세히 보기 ↗</a>
+              <a class="btn btn-ghost btn-sm" data-pamphlet target="_blank" rel="noopener" style="margin-top:16px" hidden>프로그램북에서 자세히 보기 ↗</a>
             </div>
             <div class="card" id="notice-card" style="margin-top:20px" hidden>
               <h3>관람 안내</h3>
@@ -245,7 +248,7 @@
           <article class="ticket" id="ticket" aria-label="예약 확인서">
             <span class="ticket-notch t"></span><span class="ticket-notch b"></span>
             <div class="ticket-main">
-              <div class="ticket-top"><span data-emblem></span><div><small>Admission Ticket</small><strong data-bind="organizer">인천교사오케스트라</strong></div></div>
+              <div class="ticket-top"><img class="ticket-logo" src="assets/logo-gold.webp" alt="" width="56" height="52"><img class="ticket-logo print-logo" src="assets/logo-black.png" alt="" width="56" height="52"><div><small>Admission Ticket</small><strong data-bind="organizer">인천교사오케스트라</strong></div></div>
               <h3 data-bind="title"></h3>
               <dl>
                 <div><dt>예약자</dt><dd id="t-name"></dd></div>
@@ -283,7 +286,7 @@
   </div>
 
   <footer class="site-footer">
-    <div data-emblem></div>
+    <img class="footer-logo" src="assets/logo-gold.webp" alt="Incheon Teachers Orchestra" width="88" height="81">
     <div><span data-bind="hosts">주최 인천교사오케스트라 · 주관 인천광역시교육청</span> · 전석 무료 공연</div>
     <div style="margin-top:6px">© 인천교사오케스트라. 본 사이트는 공연 좌석 예약 목적 외에 개인정보를 이용하지 않습니다.</div>
   </footer>

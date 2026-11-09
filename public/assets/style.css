@@ -544,3 +544,28 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   .manage-card { padding: 20px 16px; }
   .manage-card .mc-actions .btn { flex: 1; }
 }
+
+/* ---------- 로고 ---------- */
+.brand-logo { height: 46px; width: auto; flex: none; }
+.brand-text small { font-family: var(--sans); font-style: normal; letter-spacing: .02em; font-size: 12px; }
+.hero-logo { height: clamp(96px, 13vw, 150px); width: auto; margin: 0 auto 22px; filter: drop-shadow(0 8px 30px rgba(212, 175, 95, .25)); }
+.footer-logo { height: 72px; width: auto; margin: 0 auto 14px; opacity: .9; }
+.ticket-logo { height: 46px; width: auto; }
+.print-logo { display: none; }
+.login-logo { height: 110px; width: auto; margin: 0 auto 18px; }
+@media (max-width: 720px) {
+  .brand-logo { height: 38px; }
+  .brand-text small { display: none; }
+  .cta-row .btn-lg { --h: 50px; padding: 0 20px; font-size: 15.5px; }
+}
+@media print {
+  .ticket-logo { display: none; }
+  .ticket-logo.print-logo { display: block; }
+}
+@media (max-width: 720px) {
+  .brand-text { display: none; }
+  .brand-logo { height: 42px; }
+  .hero .kicker { letter-spacing: .1em; font-size: 13px; }
+  .hero-logo { height: 104px; margin-bottom: 16px; }
+}
+@media print { .ticket-top strong { color: #333 !important; } }
