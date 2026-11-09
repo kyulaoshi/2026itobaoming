@@ -3,12 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>인천교사오케스트라 제9회 정기연주회 · 무료 좌석 예약</title>
+  <title>인천교사오케스트라 제9회 정기연주회 좌석예약</title>
   <meta name="description" content="인천교사오케스트라 제9회 정기연주회 「열한 번의 겨울이 축적한 깊이」 · 2026.12.9(수) 19:00 인천문화예술회관 대공연장 · 전석 무료 좌석 예약. 원하는 좌석을 직접 선택하고 공연 당일 현장에서 티켓을 수령하세요.">
   <meta name="theme-color" content="#06070c">
-  <meta property="og:title" content="인천교사오케스트라 제9회 정기연주회 · 무료 좌석 예약">
-  <meta property="og:description" content="2026. 12. 9.(수) 19:00 인천문화예술회관 대공연장 · 전석 무료 · 원하는 좌석을 직접 선택해 예약하세요.">
+  <meta property="og:title" content="인천교사오케스트라 제9회 정기연주회 좌석예약">
+  <meta property="og:description" content="2026. 12. 9.(수) 오후 7시 · 인천문화예술회관 대공연장 · 전석 무료 · 원하는 좌석을 직접 골라 예약하세요">
   <meta property="og:type" content="website">
+  <!-- 카카오톡·문자 공유 미리보기 (사이트 주소가 바뀌면 아래 https://2026itobaoming.vercel.app 부분만 고치면 됩니다) -->
+  <meta property="og:site_name" content="인천교사오케스트라">
+  <meta property="og:url" content="https://2026itobaoming.vercel.app/">
+  <meta property="og:image" content="https://2026itobaoming.vercel.app/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="인천교사오케스트라 제9회 정기연주회 포스터">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://2026itobaoming.vercel.app/og-image.jpg">
   <link rel="preload" as="image" href="assets/logo-gold.webp">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306070c'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%23d4af5f' stroke-width='3'/%3E%3Ctext x='32' y='41' font-family='serif' font-size='24' text-anchor='middle' fill='%23d4af5f'%3EI%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +39,7 @@
       </a>
       <nav class="nav" aria-label="주요 메뉴">
         <a href="#about" class="hide-m" data-go="about">공연 안내</a>
-        <button type="button" class="linklike" id="btn-lookup">예약 확인·변경</button>
+        <button type="button" class="linklike" id="btn-lookup">예약 확인/변경</button>
         <button type="button" class="btn btn-gold btn-sm" data-go="seats">좌석 예약</button>
       </nav>
     </div>
@@ -55,7 +64,7 @@
         <div class="hero-cta">
           <div class="cta-row">
             <button type="button" class="btn btn-gold btn-lg" data-go="seats">좌석 예약하기</button>
-            <button type="button" class="btn btn-ghost btn-lg" data-lookup>예약 확인</button>
+            <button type="button" class="btn btn-ghost btn-lg" data-lookup>예약 확인/변경</button>
             <a class="btn btn-ghost btn-lg" data-pamphlet target="_blank" rel="noopener" hidden>프로그램북 보기</a>
           </div>
           <div class="avail-pill" id="hero-avail">좌석 정보를 불러오는 중…</div>
