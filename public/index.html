@@ -24,6 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="assets/style.css">
+  <style>.hero-meta dd small.age-note{color:var(--gold-2);margin-top:4px}</style>
 </head>
 <body>
   <div class="demo-banner" id="demo-banner" hidden>
@@ -59,7 +60,7 @@
         <dl class="hero-meta">
           <div><dt>DATE</dt><dd data-bind="date_text">2026년 12월 9일 (수) 오후 7시</dd></div>
           <div><dt>VENUE</dt><dd><span data-bind="venue">인천문화예술회관 대공연장</span><small data-bind="venue_address"></small></dd></div>
-          <div><dt>TICKET</dt><dd><span class="free-badge" data-bind="price_text">전석 무료</span><small data-bind="pickup_text">공연 당일 현장 수령</small></dd></div>
+          <div><dt>TICKET</dt><dd><span class="free-badge" data-bind="price_text">전석 무료</span><small data-bind="pickup_text">공연 당일 현장 수령</small><small class="age-note">5세 이상 관람</small></dd></div>
         </dl>
         <div class="hero-cta">
           <div class="cta-row">
@@ -89,6 +90,7 @@
               <tr><th>주최·주관</th><td data-bind="hosts"></td></tr>
               <tr><th>티켓 가격</th><td data-bind="price_text"></td></tr>
               <tr><th>티켓 수령</th><td data-bind="pickup_text"></td></tr>
+              <tr><th>관람 연령</th><td>5세 이상</td></tr>
               <tr><th>예약 매수</th><td>1인당 최대 <b data-bind="max_seats_per_person">4</b>석</td></tr>
             </table>
           </div>
@@ -230,6 +232,7 @@
             <div class="row"><span>장소</span><span data-bind="venue"></span></div>
             <div class="row"><span>선택 좌석</span><span class="seats-list" id="form-seats"></span></div>
             <div class="row"><span>티켓 수령</span><span data-bind="pickup_text"></span></div>
+            <div class="row"><span>관람 연령</span><span>5세 이상</span></div>
             <div class="total"><span>예약 비용</span><span><b>0</b>원<small>무료</small></span></div>
             <div class="timer" id="timer2" style="margin:12px 0 14px">남은 시간 <b id="timer2-v">10:00</b></div>
             <button type="submit" class="btn btn-gold btn-lg btn-block" id="btn-submit">예약하기</button>
